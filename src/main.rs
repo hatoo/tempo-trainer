@@ -164,7 +164,6 @@ fn tap(
         while tap_deltas.0.len() > BINS {
             tap_deltas.0.pop_back();
         }
-        dbg!(&tap_deltas.0);
     }
 }
 
@@ -345,9 +344,9 @@ fn set_bins(
                 transform.scale = Vec3::new(88.0, height, 1.0);
 
                 let color = if *delta > 0.0 {
-                    Color::linear_rgb(1.0, 0.0, 0.0)
+                    Color::linear_rgba(1.0, 0.0, 0.0, 0.6)
                 } else {
-                    Color::linear_rgb(0.0, 0.0, 1.0)
+                    Color::linear_rgba(0.0, 0.0, 1.0, 0.6)
                 };
 
                 // TODO: reuse material handle
@@ -397,6 +396,7 @@ fn set_clock_legend(
             let y = angle.cos() * CIRCLE_SIZE;
 
             (
+                ClockLegend,
                 mesh.clone(),
                 material.clone(),
                 Transform::from_xyz(x, y, 3.0),
