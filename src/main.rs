@@ -4,6 +4,7 @@ use std::{
 };
 
 use bevy::{
+    diagnostic::{DiagnosticsStore, FrameTimeDiagnosticsPlugin},
     prelude::*,
     render::{camera::ScalingMode, mesh::CircleMeshBuilder},
 };
@@ -31,7 +32,7 @@ struct TapDeltas(VecDeque<f64>);
 
 fn main() {
     App::new()
-        .add_plugins(DefaultPlugins)
+        .add_plugins((DefaultPlugins, FrameTimeDiagnosticsPlugin::default()))
         .insert_resource(Time::<Fixed>::from_duration(from_bpm(90.0)))
         .insert_resource(LastTick(Instant::now()))
         .insert_resource(Division(1))
@@ -47,6 +48,7 @@ fn main() {
                 set_status_text,
                 set_bins,
                 set_clock_legend,
+                fps_text_update_system,
             ),
         )
         .run();
@@ -117,6 +119,17 @@ fn setup(
         commands.spawn(Bin::new(i, &mut meshes, &mut materials));
         commands.spawn(BinText::new(i));
     }
+
+    commands.spawn((
+        FpsText,
+        Text::new(""),
+        Node {
+            position_type: PositionType::Absolute,
+            bottom: Val::Px(4.0),
+            right: Val::Px(4.0),
+            ..default()
+        },
+    ));
 }
 
 fn tap(
@@ -337,6 +350,7 @@ fn set_bins(
                     Color::linear_rgb(0.0, 0.0, 1.0)
                 };
 
+                // TODO: reuse material handle
                 material.0 = materials.add(color);
             } else {
                 transform.scale = Vec3::ZERO;
@@ -370,6 +384,12 @@ fn set_clock_legend(
     }
 
     let division = division.0;
+
+    // TODO: reuse mesh and material handles
+    let mesh = Mesh2d(meshes.add(Mesh::from(Circle { radius: 16.0 })));
+
+    let material = MeshMaterial2d(materials.add(Color::linear_rgb(0.1, 0.3, 0.1)));
+
     let new_legends = (0..division)
         .map(|i| {
             let angle = 2.0 * std::f32::consts::PI * (i as f32 / division as f32);
@@ -377,15 +397,29 @@ fn set_clock_legend(
             let y = angle.cos() * CIRCLE_SIZE;
 
             (
-                Mesh2d(meshes.add(Mesh::from(Circle {
-                    radius: 16.0,
-                    ..Default::default()
-                }))),
-                MeshMaterial2d(materials.add(Color::linear_rgb(0.1, 0.5, 0.1))),
+                mesh.clone(),
+                material.clone(),
                 Transform::from_xyz(x, y, 3.0),
             )
         })
         .collect::<Vec<_>>();
 
     commands.spawn_batch(new_legends);
+}
+
+#[derive(Component)]
+struct FpsText;
+
+fn fps_text_update_system(
+    diagnostics: Res<DiagnosticsStore>,
+    mut query: Query<&mut Text, With<FpsText>>,
+) {
+    for mut span in &mut query {
+        if let Some(fps) = diagnostics.get(&FrameTimeDiagnosticsPlugin::FPS) {
+            if let Some(value) = fps.smoothed() {
+                // Update the value of the second section
+                **span = format!("FPS: {value:.2}");
+            }
+        }
+    }
 }
