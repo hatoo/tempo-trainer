@@ -35,7 +35,16 @@ struct Mute(bool);
 
 fn main() {
     App::new()
-        .add_plugins((DefaultPlugins, FrameTimeDiagnosticsPlugin::default()))
+        .add_plugins((
+            DefaultPlugins.set(WindowPlugin {
+                primary_window: Some(Window {
+                    title: "tempo-trainer".to_string(),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            }),
+            FrameTimeDiagnosticsPlugin::default(),
+        ))
         .insert_resource(Time::<Fixed>::from_duration(from_bpm(90.0)))
         .insert_resource(LastTick(Instant::now()))
         .insert_resource(Division(1))
