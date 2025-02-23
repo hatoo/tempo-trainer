@@ -38,7 +38,17 @@ fn main() {
         .insert_resource(TapDeltas(VecDeque::new()))
         .add_systems(Startup, setup)
         .add_systems(FixedUpdate, metronome)
-        .add_systems(Update, (tap, control, clock, set_status_text, set_bins))
+        .add_systems(
+            Update,
+            (
+                tap,
+                control,
+                clock,
+                set_status_text,
+                set_bins,
+                set_clock_legend,
+            ),
+        )
         .run();
 }
 
@@ -341,4 +351,41 @@ fn set_bins(
             }
         }
     }
+}
+
+#[derive(Component)]
+struct ClockLegend;
+
+fn set_clock_legend(
+    mut commands: Commands,
+    query: Query<Entity, With<ClockLegend>>,
+    division: Res<Division>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+) {
+    if division.is_changed() {
+        for e in query.iter() {
+            commands.entity(e).despawn_recursive();
+        }
+    }
+
+    let division = division.0;
+    let new_legends = (0..division)
+        .map(|i| {
+            let angle = 2.0 * std::f32::consts::PI * (i as f32 / division as f32);
+            let x = angle.sin() * CIRCLE_SIZE;
+            let y = angle.cos() * CIRCLE_SIZE;
+
+            (
+                Mesh2d(meshes.add(Mesh::from(Circle {
+                    radius: 16.0,
+                    ..Default::default()
+                }))),
+                MeshMaterial2d(materials.add(Color::linear_rgb(0.1, 0.5, 0.1))),
+                Transform::from_xyz(x, y, 3.0),
+            )
+        })
+        .collect::<Vec<_>>();
+
+    commands.spawn_batch(new_legends);
 }
