@@ -17,7 +17,7 @@ jobs:
         include:
           - os: windows-latest
             artifact_name: tempo-trainer.exe
-            release_name: tempo-trainer-windows-amd64.zip
+            release_name: tempo-trainer-windows-amd64
             target: x86_64-pc-windows-msvc
             use_cross: false
     steps:
@@ -40,12 +40,12 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.release_name }}
-          path: tempo-trainer.zip
+          path: tempo-trainer
       - name: Upload binaries to release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: tempo-trainer.zip
-          asset_name: ${{ matrix.release_name }}
+          asset_name: ${{ matrix.release_name }}.zip
           tag: ${{ github.ref }}
