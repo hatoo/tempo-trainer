@@ -158,7 +158,10 @@ fn tap(
 ) {
     if keyboard_input.get_just_pressed().count() > 0 {
         if !mute.0 {
-            commands.spawn(AudioPlayer::new(asset_server.load(TAP_AUDIO_PATH)));
+            commands.spawn((
+                AudioPlayer::new(asset_server.load(TAP_AUDIO_PATH)),
+                PlaybackSettings::DESPAWN,
+            ));
         }
 
         let now = Instant::now();
@@ -191,7 +194,10 @@ fn metronome(
     mute: Res<Mute>,
 ) {
     if !mute.0 {
-        commands.spawn(AudioPlayer::new(asset_server.load(CLICK_AUDIO_PATH)));
+        commands.spawn((
+            AudioPlayer::new(asset_server.load(CLICK_AUDIO_PATH)),
+            PlaybackSettings::DESPAWN,
+        ));
     }
     last_tick.0 = Instant::now();
 }
