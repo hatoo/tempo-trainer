@@ -100,7 +100,7 @@ fn setup(
     ));
 
     commands
-        .spawn((Clock, Transform::default()))
+        .spawn((Clock, Transform::default(), Visibility::Hidden))
         .with_children(|commands| {
             commands.spawn((
                 Mesh2d(meshes.add(CircleMeshBuilder {
@@ -132,7 +132,7 @@ fn setup(
 
     commands.spawn((
         Text::new(
-            "up/down: BPM +-1\nleft/right: BPM +-10\n[/]: Division +-1\nm: Mute\n, Hide Clock",
+            "up/down: BPM +-1\nleft/right: BPM +-10\n[/]: Division +-1\nm: Mute\n,: Hide Clock",
         ),
         Node {
             position_type: PositionType::Absolute,
@@ -339,6 +339,7 @@ struct Bin {
     material: MeshMaterial2d<ColorMaterial>,
     transform: Transform,
     bin_bar: BinBar,
+    visibility: Visibility,
 }
 
 impl Bin {
@@ -347,17 +348,15 @@ impl Bin {
         meshes: &mut ResMut<Assets<Mesh>>,
         materials: &mut ResMut<Assets<ColorMaterial>>,
     ) -> Self {
-        let mut transform = Transform::from_xyz(0.0, 0.0, 4.0);
-        transform.scale = Vec3::ZERO;
-        transform.translation.x = (index as f32 - (BINS / 2) as f32) * 100.0;
         Self {
             index: BinIndex(index),
             rect: Mesh2d(meshes.add(Mesh::from(Rectangle {
                 half_size: Vec2::new(0.5, 0.5),
             }))),
             material: MeshMaterial2d(materials.add(Color::linear_rgb(0.0, 0.0, 1.0))),
-            transform,
+            transform: Transform::from_xyz((index as f32 - (BINS / 2) as f32) * 100.0, 0.0, 4.0),
             bin_bar: BinBar,
+            visibility: Visibility::Hidden,
         }
     }
 }
@@ -385,6 +384,7 @@ fn set_bins(
             &BinIndex,
             &mut MeshMaterial2d<ColorMaterial>,
             &mut Transform,
+            &mut Visibility,
         ),
         With<BinBar>,
     >,
@@ -393,7 +393,7 @@ fn set_bins(
     tap_deltas: Res<TapDeltas>,
 ) {
     if tap_deltas.is_changed() {
-        for (BinIndex(index), mut material, mut transform) in &mut query_bar {
+        for (BinIndex(index), mut material, mut transform, mut visibility) in &mut query_bar {
             if let Some(delta) = tap_deltas.0.get(*index) {
                 let height = *delta as f32 * 4000.0;
                 transform.translation.y = height / 2.0;
@@ -407,8 +407,9 @@ fn set_bins(
 
                 // TODO: reuse material handle
                 material.0 = materials.add(color);
+                *visibility = Visibility::Visible;
             } else {
-                transform.scale = Vec3::ZERO;
+                *visibility = Visibility::Hidden;
             }
         }
 
@@ -422,13 +423,13 @@ fn set_bins(
     }
 }
 
-fn hide_clock(mut clock: Query<&mut Transform, With<Clock>>, hide_clock: Res<HideClock>) {
+fn hide_clock(mut clock: Query<&mut Visibility, With<Clock>>, hide_clock: Res<HideClock>) {
     if hide_clock.is_changed() {
-        for mut transform in &mut clock {
+        for mut visibility in &mut clock {
             if hide_clock.0 {
-                transform.scale = Vec3::ZERO;
+                *visibility = Visibility::Hidden;
             } else {
-                transform.scale = Vec3::ONE;
+                *visibility = Visibility::Visible;
             }
         }
     }
