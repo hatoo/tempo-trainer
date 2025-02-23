@@ -83,6 +83,16 @@ fn setup(
             ..Default::default()
         },
     ));
+
+    commands.spawn((
+        Text::new("up/down: BPM +-1\nleft/right: BPM +-10\n[/]: Division +-1"),
+        Node {
+            position_type: PositionType::Absolute,
+            top: Val::Px(12.0),
+            left: Val::Px(120.0),
+            ..Default::default()
+        },
+    ));
 }
 
 fn tap(
