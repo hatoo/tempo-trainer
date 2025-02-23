@@ -3717,7 +3717,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "tempo-training"
+name = "tempo-trainer"
 version = "0.1.0"
 dependencies = [
  "bevy",
