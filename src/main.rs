@@ -4,7 +4,7 @@ use std::{
 };
 
 use bevy::{
-    diagnostic::{DiagnosticsStore, FrameTimeDiagnosticsPlugin},
+    diagnostic::{DiagnosticsStore, EntityCountDiagnosticsPlugin, FrameTimeDiagnosticsPlugin},
     prelude::*,
     render::{camera::ScalingMode, mesh::CircleMeshBuilder},
 };
@@ -44,6 +44,7 @@ fn main() {
                 ..Default::default()
             }),
             FrameTimeDiagnosticsPlugin::default(),
+            EntityCountDiagnosticsPlugin::default(),
         ))
         .insert_resource(Time::<Fixed>::from_duration(from_bpm(90.0)))
         .insert_resource(LastTick(Instant::now()))
@@ -444,14 +445,30 @@ fn fps_text_update_system(
     diagnostics: Res<DiagnosticsStore>,
     mut query: Query<&mut Text, With<FpsText>>,
 ) {
+    let fps = if let Some(fps) = diagnostics.get(&FrameTimeDiagnosticsPlugin::FPS) {
+        if let Some(value) = fps.smoothed() {
+            format!("{value:.2}")
+        } else {
+            "N/A".to_string()
+        }
+    } else {
+        "N/A".to_string()
+    };
+
+    let entity_count =
+        if let Some(entity_count) = diagnostics.get(&EntityCountDiagnosticsPlugin::ENTITY_COUNT) {
+            if let Some(value) = entity_count.value() {
+                format!("{value:.0}")
+            } else {
+                "N/A".to_string()
+            }
+        } else {
+            "N/A".to_string()
+        };
+
     if diagnostics.is_changed() {
         for mut span in &mut query {
-            if let Some(fps) = diagnostics.get(&FrameTimeDiagnosticsPlugin::FPS) {
-                if let Some(value) = fps.smoothed() {
-                    // Update the value of the second section
-                    **span = format!("FPS: {value:.2}");
-                }
-            }
+            **span = format!("entity_count: {entity_count} FPS: {fps}");
         }
     }
 }
