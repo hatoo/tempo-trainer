@@ -302,16 +302,32 @@ impl BinText {
 }
 
 fn set_bins(
-    mut query_bar: Query<(&BinIndex, &mut Transform), With<BinBar>>,
+    mut query_bar: Query<
+        (
+            &BinIndex,
+            &mut MeshMaterial2d<ColorMaterial>,
+            &mut Transform,
+        ),
+        With<BinBar>,
+    >,
     mut query_text: Query<(&BinIndex, &mut Text2d)>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
     tap_deltas: Res<TapDeltas>,
 ) {
     if tap_deltas.is_changed() {
-        for (BinIndex(index), mut transform) in &mut query_bar {
+        for (BinIndex(index), mut material, mut transform) in &mut query_bar {
             if let Some(delta) = tap_deltas.0.get(*index) {
                 let height = *delta as f32 * 4000.0;
                 transform.translation.y = height / 2.0;
                 transform.scale = Vec3::new(88.0, height, 1.0);
+
+                let color = if *delta > 0.0 {
+                    Color::linear_rgb(1.0, 0.0, 0.0)
+                } else {
+                    Color::linear_rgb(0.0, 0.0, 1.0)
+                };
+
+                material.0 = materials.add(color);
             } else {
                 transform.scale = Vec3::ZERO;
             }
