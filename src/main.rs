@@ -33,6 +33,12 @@ struct TapDeltas(VecDeque<f64>);
 #[derive(Resource)]
 struct Mute(bool);
 
+#[derive(Resource)]
+struct HideClock(bool);
+
+#[derive(Component)]
+struct Clock;
+
 fn main() {
     App::new()
         .add_plugins((
@@ -51,6 +57,7 @@ fn main() {
         .insert_resource(Division(1))
         .insert_resource(TapDeltas(VecDeque::new()))
         .insert_resource(Mute(false))
+        .insert_resource(HideClock(false))
         .add_systems(Startup, setup)
         .add_systems(FixedUpdate, metronome)
         .add_systems(
@@ -63,6 +70,7 @@ fn main() {
                 set_bins,
                 set_clock_legend,
                 fps_text_update_system,
+                hide_clock,
             ),
         )
         .run();
@@ -91,21 +99,25 @@ fn setup(
         }),
     ));
 
-    commands.spawn((
-        Mesh2d(meshes.add(CircleMeshBuilder {
-            circle: Circle::new(CIRCLE_SIZE),
-            resolution: 128,
-        })),
-        MeshMaterial2d(materials.add(Color::linear_rgb(0.4, 0.4, 0.4))),
-        Transform::from_xyz(0.0, 0.0, 0.0),
-    ));
+    commands
+        .spawn((Clock, Transform::default()))
+        .with_children(|commands| {
+            commands.spawn((
+                Mesh2d(meshes.add(CircleMeshBuilder {
+                    circle: Circle::new(CIRCLE_SIZE),
+                    resolution: 128,
+                })),
+                MeshMaterial2d(materials.add(Color::linear_rgb(0.4, 0.4, 0.4))),
+                Transform::from_xyz(0.0, 0.0, 0.0),
+            ));
 
-    commands.spawn((
-        ClockMarker,
-        Mesh2d(meshes.add(Mesh::from(Circle::new(CIRCLE_SIZE / 8.0)))),
-        MeshMaterial2d(materials.add(Color::BLACK)),
-        Transform::from_xyz(0.0, 0.0, 1.0),
-    ));
+            commands.spawn((
+                ClockMarker,
+                Mesh2d(meshes.add(Mesh::from(Circle::new(CIRCLE_SIZE / 8.0)))),
+                MeshMaterial2d(materials.add(Color::BLACK)),
+                Transform::from_xyz(0.0, 0.0, 1.0),
+            ));
+        });
 
     commands.spawn((
         StatusText,
@@ -119,7 +131,9 @@ fn setup(
     ));
 
     commands.spawn((
-        Text::new("up/down: BPM +-1\nleft/right: BPM +-10\n[/]: Division +-1\nm: Mute"),
+        Text::new(
+            "up/down: BPM +-1\nleft/right: BPM +-10\n[/]: Division +-1\nm: Mute\n, Hide Clock",
+        ),
         Node {
             position_type: PositionType::Absolute,
             top: Val::Px(12.0),
@@ -206,6 +220,7 @@ fn control(
     mut timer: ResMut<Time<Fixed>>,
     mut division: ResMut<Division>,
     mut mute: ResMut<Mute>,
+    mut hide_clock: ResMut<HideClock>,
     keyboard_input: Res<ButtonInput<KeyCode>>,
 ) {
     if keyboard_input.just_pressed(KeyCode::ArrowUp) {
@@ -251,6 +266,10 @@ fn control(
 
     if keyboard_input.just_pressed(KeyCode::KeyM) {
         mute.0 = !mute.0;
+    }
+
+    if keyboard_input.just_pressed(KeyCode::Comma) {
+        hide_clock.0 = !hide_clock.0;
     }
 }
 
@@ -403,12 +422,25 @@ fn set_bins(
     }
 }
 
+fn hide_clock(mut clock: Query<&mut Transform, With<Clock>>, hide_clock: Res<HideClock>) {
+    if hide_clock.is_changed() {
+        for mut transform in &mut clock {
+            if hide_clock.0 {
+                transform.scale = Vec3::ZERO;
+            } else {
+                transform.scale = Vec3::ONE;
+            }
+        }
+    }
+}
+
 #[derive(Component)]
 struct ClockLegend;
 
 fn set_clock_legend(
     mut commands: Commands,
     query: Query<Entity, With<ClockLegend>>,
+    parent: Query<Entity, With<Clock>>,
     division: Res<Division>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
@@ -418,15 +450,15 @@ fn set_clock_legend(
             commands.entity(e).despawn_recursive();
         }
 
+        let parent = parent.single();
         let division = division.0;
 
         // TODO: reuse mesh and material handles
         let mesh = Mesh2d(meshes.add(Mesh::from(Circle { radius: 16.0 })));
-
         let material = MeshMaterial2d(materials.add(Color::linear_rgb(0.1, 0.3, 0.1)));
 
-        let new_legends = (0..division)
-            .map(|i| {
+        commands.entity(parent).with_children(|commands| {
+            for bundle in (0..division).map(|i| {
                 let angle = 2.0 * std::f32::consts::PI * (i as f32 / division as f32);
                 let x = angle.sin() * CIRCLE_SIZE;
                 let y = angle.cos() * CIRCLE_SIZE;
@@ -437,10 +469,10 @@ fn set_clock_legend(
                     material.clone(),
                     Transform::from_xyz(x, y, 3.0),
                 )
-            })
-            .collect::<Vec<_>>();
-
-        commands.spawn_batch(new_legends);
+            }) {
+                commands.spawn(bundle);
+            }
+        });
     }
 }
 
