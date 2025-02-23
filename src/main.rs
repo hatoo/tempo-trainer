@@ -1,12 +1,20 @@
 use std::time::{Duration, Instant};
 
-use bevy::{prelude::*, render::camera::ScalingMode};
+use bevy::{
+    prelude::*,
+    render::{camera::ScalingMode, mesh::CircleMeshBuilder},
+};
 
 const CLICK_AUDIO_PATH: &str = "sounds/c5.ogg";
 const TAP_AUDIO_PATH: &str = "sounds/c4.ogg";
 
+const CIRCLE_SIZE: f32 = 400.0;
+
 #[derive(Component)]
 struct StatusText;
+
+#[derive(Component)]
+struct ClockMarker;
 
 #[derive(Resource)]
 struct LastTick(Instant);
@@ -22,7 +30,7 @@ fn main() {
         .insert_resource(Division(1))
         .add_systems(Startup, setup)
         .add_systems(FixedUpdate, metronome)
-        .add_systems(Update, (tap, control, set_status_text))
+        .add_systems(Update, (tap, control, clock, set_status_text))
         .run();
 }
 
@@ -49,12 +57,20 @@ fn setup(
         }),
     ));
 
-    let circle_mesh = meshes.add(Mesh::from(Circle::new(100.0)));
-    let circle_material = materials.add(Color::linear_rgb(1.0, 1.0, 0.2));
     commands.spawn((
-        Mesh2d(circle_mesh),
-        MeshMaterial2d(circle_material),
-        Transform::from_xyz(0.0, 200.0, 0.0),
+        Mesh2d(meshes.add(CircleMeshBuilder {
+            circle: Circle::new(CIRCLE_SIZE),
+            resolution: 128,
+        })),
+        MeshMaterial2d(materials.add(Color::WHITE)),
+        Transform::from_xyz(0.0, 0.0, 0.0),
+    ));
+
+    commands.spawn((
+        ClockMarker,
+        Mesh2d(meshes.add(Mesh::from(Circle::new(CIRCLE_SIZE / 8.0)))),
+        MeshMaterial2d(materials.add(Color::BLACK)),
+        Transform::from_xyz(0.0, 0.0, 1.0),
     ));
 
     commands.spawn((
@@ -164,4 +180,19 @@ fn set_status_text(
     if timer.is_changed() || division.is_changed() {
         query.single_mut().0 = format!("BPM: {}\n1 / {}", bpm(&timer) as u32, division.0);
     }
+}
+
+fn clock(
+    last_tick: Res<LastTick>,
+    timer: Res<Time<Fixed>>,
+    mut query: Query<&mut Transform, With<ClockMarker>>,
+) {
+    let now = Instant::now();
+    let time_step = timer.timestep();
+    let delta = (now - last_tick.0).as_secs_f64() / time_step.as_secs_f64();
+
+    let angle = 2.0 * std::f32::consts::PI * delta as f32;
+
+    let mut transform = query.single_mut();
+    transform.translation = Vec3::new(angle.sin() * CIRCLE_SIZE, angle.cos() * CIRCLE_SIZE, 1.0);
 }
