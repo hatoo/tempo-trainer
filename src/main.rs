@@ -70,7 +70,7 @@ fn setup(
             circle: Circle::new(CIRCLE_SIZE),
             resolution: 128,
         })),
-        MeshMaterial2d(materials.add(Color::WHITE)),
+        MeshMaterial2d(materials.add(Color::linear_rgb(0.4, 0.4, 0.4))),
         Transform::from_xyz(0.0, 0.0, 0.0),
     ));
 
@@ -105,6 +105,7 @@ fn setup(
     commands.spawn(BarChart::new(&mut meshes, &mut materials));
     for i in 0..BINS {
         commands.spawn(Bin::new(i, &mut meshes, &mut materials));
+        commands.spawn(BinText::new(i));
     }
 }
 
@@ -250,12 +251,16 @@ impl BarChart {
 #[derive(Component)]
 struct BinIndex(usize);
 
+#[derive(Component)]
+struct BinBar;
+
 #[derive(Bundle)]
 struct Bin {
     index: BinIndex,
     rect: Mesh2d,
     material: MeshMaterial2d<ColorMaterial>,
     transform: Transform,
+    bin_bar: BinBar,
 }
 
 impl Bin {
@@ -274,19 +279,49 @@ impl Bin {
             }))),
             material: MeshMaterial2d(materials.add(Color::linear_rgb(0.0, 0.0, 1.0))),
             transform,
+            bin_bar: BinBar,
         }
     }
 }
 
-fn set_bins(mut query: Query<(&BinIndex, &mut Transform)>, tap_deltas: Res<TapDeltas>) {
+#[derive(Bundle)]
+struct BinText {
+    index: BinIndex,
+    text: Text2d,
+    trandform: Transform,
+}
+
+impl BinText {
+    fn new(index: usize) -> Self {
+        Self {
+            index: BinIndex(index),
+            text: Text2d::new(""),
+            trandform: Transform::from_xyz((index as f32 - (BINS / 2) as f32) * 100.0, 0.0, 8.0),
+        }
+    }
+}
+
+fn set_bins(
+    mut query_bar: Query<(&BinIndex, &mut Transform), With<BinBar>>,
+    mut query_text: Query<(&BinIndex, &mut Text2d)>,
+    tap_deltas: Res<TapDeltas>,
+) {
     if tap_deltas.is_changed() {
-        for (BinIndex(index), mut transform) in &mut query {
+        for (BinIndex(index), mut transform) in &mut query_bar {
             if let Some(delta) = tap_deltas.0.get(*index) {
-                let height = *delta as f32 * 1000.0;
+                let height = *delta as f32 * 4000.0;
                 transform.translation.y = height / 2.0;
                 transform.scale = Vec3::new(88.0, height, 1.0);
             } else {
                 transform.scale = Vec3::ZERO;
+            }
+        }
+
+        for (BinIndex(index), mut text) in &mut query_text {
+            if let Some(delta) = tap_deltas.0.get(*index) {
+                text.0 = format!("{:.1}", delta * 1000.0);
+            } else {
+                text.0 = "".to_string();
             }
         }
     }
