@@ -414,11 +414,13 @@ fn fps_text_update_system(
     diagnostics: Res<DiagnosticsStore>,
     mut query: Query<&mut Text, With<FpsText>>,
 ) {
-    for mut span in &mut query {
-        if let Some(fps) = diagnostics.get(&FrameTimeDiagnosticsPlugin::FPS) {
-            if let Some(value) = fps.smoothed() {
-                // Update the value of the second section
-                **span = format!("FPS: {value:.2}");
+    if diagnostics.is_changed() {
+        for mut span in &mut query {
+            if let Some(fps) = diagnostics.get(&FrameTimeDiagnosticsPlugin::FPS) {
+                if let Some(value) = fps.smoothed() {
+                    // Update the value of the second section
+                    **span = format!("FPS: {value:.2}");
+                }
             }
         }
     }
