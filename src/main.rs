@@ -49,8 +49,8 @@ fn main() {
                 }),
                 ..Default::default()
             }),
-            FrameTimeDiagnosticsPlugin::default(),
-            EntityCountDiagnosticsPlugin::default(),
+            FrameTimeDiagnosticsPlugin,
+            EntityCountDiagnosticsPlugin,
         ))
         .insert_resource(Time::<Fixed>::from_duration(from_bpm(90.0)))
         .insert_resource(LastTick(Instant::now()))
@@ -254,10 +254,8 @@ fn control(
         timer.set_timestep(from_bpm(next_bpm as f32));
     }
 
-    if keyboard_input.just_pressed(KeyCode::BracketLeft) {
-        if division.0 > 1 {
-            division.0 -= 1;
-        }
+    if keyboard_input.just_pressed(KeyCode::BracketLeft) && division.0 > 1 {
+        division.0 -= 1;
     }
 
     if keyboard_input.just_pressed(KeyCode::BracketRight) {
