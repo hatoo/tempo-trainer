@@ -380,31 +380,31 @@ fn set_clock_legend(
         for e in query.iter() {
             commands.entity(e).despawn_recursive();
         }
+
+        let division = division.0;
+
+        // TODO: reuse mesh and material handles
+        let mesh = Mesh2d(meshes.add(Mesh::from(Circle { radius: 16.0 })));
+
+        let material = MeshMaterial2d(materials.add(Color::linear_rgb(0.1, 0.3, 0.1)));
+
+        let new_legends = (0..division)
+            .map(|i| {
+                let angle = 2.0 * std::f32::consts::PI * (i as f32 / division as f32);
+                let x = angle.sin() * CIRCLE_SIZE;
+                let y = angle.cos() * CIRCLE_SIZE;
+
+                (
+                    ClockLegend,
+                    mesh.clone(),
+                    material.clone(),
+                    Transform::from_xyz(x, y, 3.0),
+                )
+            })
+            .collect::<Vec<_>>();
+
+        commands.spawn_batch(new_legends);
     }
-
-    let division = division.0;
-
-    // TODO: reuse mesh and material handles
-    let mesh = Mesh2d(meshes.add(Mesh::from(Circle { radius: 16.0 })));
-
-    let material = MeshMaterial2d(materials.add(Color::linear_rgb(0.1, 0.3, 0.1)));
-
-    let new_legends = (0..division)
-        .map(|i| {
-            let angle = 2.0 * std::f32::consts::PI * (i as f32 / division as f32);
-            let x = angle.sin() * CIRCLE_SIZE;
-            let y = angle.cos() * CIRCLE_SIZE;
-
-            (
-                ClockLegend,
-                mesh.clone(),
-                material.clone(),
-                Transform::from_xyz(x, y, 3.0),
-            )
-        })
-        .collect::<Vec<_>>();
-
-    commands.spawn_batch(new_legends);
 }
 
 #[derive(Component)]
