@@ -30,6 +30,9 @@ struct Division(u32);
 #[derive(Resource)]
 struct TapDeltas(VecDeque<f64>);
 
+#[derive(Resource)]
+struct Mute(bool);
+
 fn main() {
     App::new()
         .add_plugins((DefaultPlugins, FrameTimeDiagnosticsPlugin::default()))
@@ -37,6 +40,7 @@ fn main() {
         .insert_resource(LastTick(Instant::now()))
         .insert_resource(Division(1))
         .insert_resource(TapDeltas(VecDeque::new()))
+        .insert_resource(Mute(false))
         .add_systems(Startup, setup)
         .add_systems(FixedUpdate, metronome)
         .add_systems(
@@ -105,11 +109,11 @@ fn setup(
     ));
 
     commands.spawn((
-        Text::new("up/down: BPM +-1\nleft/right: BPM +-10\n[/]: Division +-1"),
+        Text::new("up/down: BPM +-1\nleft/right: BPM +-10\n[/]: Division +-1\nm: Mute"),
         Node {
             position_type: PositionType::Absolute,
             top: Val::Px(12.0),
-            left: Val::Px(120.0),
+            left: Val::Px(240.0),
             ..Default::default()
         },
     ));
@@ -140,9 +144,12 @@ fn tap(
     timer: Res<Time<Fixed>>,
     division: Res<Division>,
     mut tap_deltas: ResMut<TapDeltas>,
+    mute: Res<Mute>,
 ) {
     if keyboard_input.get_just_pressed().count() > 0 {
-        commands.spawn(AudioPlayer::new(asset_server.load(TAP_AUDIO_PATH)));
+        if !mute.0 {
+            commands.spawn(AudioPlayer::new(asset_server.load(TAP_AUDIO_PATH)));
+        }
 
         let now = Instant::now();
         let time_step = timer.timestep();
@@ -171,14 +178,18 @@ fn metronome(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     mut last_tick: ResMut<LastTick>,
+    mute: Res<Mute>,
 ) {
-    commands.spawn(AudioPlayer::new(asset_server.load(CLICK_AUDIO_PATH)));
+    if !mute.0 {
+        commands.spawn(AudioPlayer::new(asset_server.load(CLICK_AUDIO_PATH)));
+    }
     last_tick.0 = Instant::now();
 }
 
 fn control(
     mut timer: ResMut<Time<Fixed>>,
     mut division: ResMut<Division>,
+    mut mute: ResMut<Mute>,
     keyboard_input: Res<ButtonInput<KeyCode>>,
 ) {
     if keyboard_input.just_pressed(KeyCode::ArrowUp) {
@@ -221,15 +232,25 @@ fn control(
     if keyboard_input.just_pressed(KeyCode::BracketRight) {
         division.0 += 1;
     }
+
+    if keyboard_input.just_pressed(KeyCode::KeyM) {
+        mute.0 = !mute.0;
+    }
 }
 
 fn set_status_text(
     timer: Res<Time<Fixed>>,
     division: Res<Division>,
+    mute: Res<Mute>,
     mut query: Query<&mut Text, With<StatusText>>,
 ) {
-    if timer.is_changed() || division.is_changed() {
-        query.single_mut().0 = format!("BPM: {}\n1 / {}", bpm(&timer).round() as u32, division.0);
+    if timer.is_changed() || division.is_changed() || mute.is_changed() {
+        query.single_mut().0 = format!(
+            "BPM: {}\n1 / {}\nMute: {}",
+            bpm(&timer).round() as u32,
+            division.0,
+            mute.0
+        );
     }
 }
 
