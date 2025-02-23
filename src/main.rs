@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use bevy::{prelude::*, render::camera::ScalingMode};
 
@@ -9,13 +9,12 @@ const TAP_AUDIO_PATH: &str = "sounds/c4.ogg";
 struct BpmText;
 
 #[derive(Resource)]
-struct LastTap(Duration);
-
+struct LastTick(Instant);
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .insert_resource(Time::<Fixed>::from_duration(from_bpm(90.0)))
-        .insert_resource(LastTap(Duration::from_secs(0)))
+        .insert_resource(LastTick(Instant::now()))
         .add_systems(Startup, setup)
         .add_systems(FixedUpdate, metronome)
         .add_systems(Update, (tap, bpm_control, set_bpm_text))
@@ -71,19 +70,38 @@ fn tap(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     keyboard_input: Res<ButtonInput<KeyCode>>,
-    time: Res<Time>,
+    last_tick: Res<LastTick>,
+    timer: Res<Time<Fixed>>,
 ) {
     if keyboard_input.get_just_pressed().count() > 0 {
-        let audio = asset_server.load(TAP_AUDIO_PATH);
+        commands.spawn(AudioPlayer::new(asset_server.load(TAP_AUDIO_PATH)));
 
-        commands.spawn(AudioPlayer::new(audio));
+        let now = Instant::now();
+        let time_step = timer.timestep();
 
-        commands.insert_resource(LastTap(time.elapsed()));
+        let last_tick = last_tick.0;
+        let next_tick = last_tick + time_step;
+
+        let delta_last = now - last_tick;
+        let delta_next = next_tick - now;
+
+        let delta_ms = if delta_last < delta_next {
+            delta_last.as_secs_f64() * 1000.0
+        } else {
+            -(delta_next.as_secs_f64() * 1000.0)
+        };
+
+        dbg!(delta_ms);
     }
 }
 
-fn metronome(mut commands: Commands, asset_server: Res<AssetServer>) {
+fn metronome(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    mut last_tick: ResMut<LastTick>,
+) {
     commands.spawn(AudioPlayer::new(asset_server.load(CLICK_AUDIO_PATH)));
+    last_tick.0 = Instant::now();
 }
 
 fn bpm_control(mut timer: ResMut<Time<Fixed>>, keyboard_input: Res<ButtonInput<KeyCode>>) {
