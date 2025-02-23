@@ -8,16 +8,24 @@ const TAP_AUDIO_PATH: &str = "sounds/c4.ogg";
 #[derive(Component)]
 struct BpmText;
 
+#[derive(Component)]
+struct DivisionText;
+
 #[derive(Resource)]
 struct LastTick(Instant);
+
+#[derive(Resource)]
+struct Division(u32);
+
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .insert_resource(Time::<Fixed>::from_duration(from_bpm(90.0)))
         .insert_resource(LastTick(Instant::now()))
+        .insert_resource(Division(1))
         .add_systems(Startup, setup)
         .add_systems(FixedUpdate, metronome)
-        .add_systems(Update, (tap, bpm_control, set_bpm_text))
+        .add_systems(Update, (tap, control, set_bpm_text, set_division_text))
         .run();
 }
 
@@ -33,8 +41,6 @@ fn setup(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
-
-    timer: Res<Time<Fixed>>,
 ) {
     commands.spawn((
         Camera2d,
@@ -56,10 +62,21 @@ fn setup(
 
     commands.spawn((
         BpmText,
-        Text::new(format!("BPM: {:.2}", bpm(&timer))),
+        Text::new(""),
         Node {
             position_type: PositionType::Absolute,
             top: Val::Px(12.0),
+            left: Val::Px(12.0),
+            ..Default::default()
+        },
+    ));
+
+    commands.spawn((
+        DivisionText,
+        Text::new(""),
+        Node {
+            position_type: PositionType::Absolute,
+            top: Val::Px(36.0),
             left: Val::Px(12.0),
             ..Default::default()
         },
@@ -72,23 +89,25 @@ fn tap(
     keyboard_input: Res<ButtonInput<KeyCode>>,
     last_tick: Res<LastTick>,
     timer: Res<Time<Fixed>>,
+    division: Res<Division>,
 ) {
     if keyboard_input.get_just_pressed().count() > 0 {
         commands.spawn(AudioPlayer::new(asset_server.load(TAP_AUDIO_PATH)));
 
         let now = Instant::now();
         let time_step = timer.timestep();
+        let time_step_div = time_step / division.0;
 
         let last_tick = last_tick.0;
         let next_tick = last_tick + time_step;
 
-        let delta_last = now - last_tick;
-        let delta_next = next_tick - now;
+        let delta_last = (now - last_tick).as_secs_f64() % time_step_div.as_secs_f64();
+        let delta_next = (next_tick - now).as_secs_f64() % time_step_div.as_secs_f64();
 
         let delta_ms = if delta_last < delta_next {
-            delta_last.as_secs_f64() * 1000.0
+            delta_last * 1000.0
         } else {
-            -(delta_next.as_secs_f64() * 1000.0)
+            -(delta_next * 1000.0)
         };
 
         dbg!(delta_ms);
@@ -104,7 +123,11 @@ fn metronome(
     last_tick.0 = Instant::now();
 }
 
-fn bpm_control(mut timer: ResMut<Time<Fixed>>, keyboard_input: Res<ButtonInput<KeyCode>>) {
+fn control(
+    mut timer: ResMut<Time<Fixed>>,
+    mut division: ResMut<Division>,
+    keyboard_input: Res<ButtonInput<KeyCode>>,
+) {
     if keyboard_input.just_pressed(KeyCode::ArrowUp) {
         let next_bpm = bpm(&timer).round() as u32 + 1;
         timer.set_timestep(from_bpm(next_bpm as f32));
@@ -132,10 +155,26 @@ fn bpm_control(mut timer: ResMut<Time<Fixed>>, keyboard_input: Res<ButtonInput<K
             timer.set_timestep(from_bpm(next_bpm as f32));
         }
     }
+
+    if keyboard_input.just_pressed(KeyCode::BracketLeft) {
+        if division.0 > 1 {
+            division.0 -= 1;
+        }
+    }
+
+    if keyboard_input.just_pressed(KeyCode::BracketRight) {
+        division.0 += 1;
+    }
 }
 
 fn set_bpm_text(timer: Res<Time<Fixed>>, mut query: Query<&mut Text, With<BpmText>>) {
     if timer.is_changed() {
         query.single_mut().0 = format!("BPM: {:.2}", bpm(&timer));
+    }
+}
+
+fn set_division_text(division: Res<Division>, mut query: Query<&mut Text, With<DivisionText>>) {
+    if division.is_changed() {
+        query.single_mut().0 = format!("1 / {}", division.0);
     }
 }
