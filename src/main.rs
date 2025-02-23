@@ -49,8 +49,8 @@ fn main() {
                 }),
                 ..Default::default()
             }),
-            FrameTimeDiagnosticsPlugin,
-            EntityCountDiagnosticsPlugin,
+            FrameTimeDiagnosticsPlugin::default(),
+            EntityCountDiagnosticsPlugin::default(),
         ))
         .insert_resource(Time::<Fixed>::from_duration(from_bpm(90.0)))
         .insert_resource(LastTick(Instant::now()))
@@ -160,6 +160,7 @@ fn setup(
     ));
 }
 
+#[allow(clippy::too_many_arguments)]
 fn tap(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
@@ -254,8 +255,10 @@ fn control(
         timer.set_timestep(from_bpm(next_bpm as f32));
     }
 
-    if keyboard_input.just_pressed(KeyCode::BracketLeft) && division.0 > 1 {
-        division.0 -= 1;
+    if keyboard_input.just_pressed(KeyCode::BracketLeft) {
+        if division.0 > 1 {
+            division.0 -= 1;
+        }
     }
 
     if keyboard_input.just_pressed(KeyCode::BracketRight) {
