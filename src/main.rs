@@ -6,10 +6,7 @@ const CLICK_AUDIO_PATH: &str = "sounds/c5.ogg";
 const TAP_AUDIO_PATH: &str = "sounds/c4.ogg";
 
 #[derive(Component)]
-struct BpmText;
-
-#[derive(Component)]
-struct DivisionText;
+struct StatusText;
 
 #[derive(Resource)]
 struct LastTick(Instant);
@@ -25,7 +22,7 @@ fn main() {
         .insert_resource(Division(1))
         .add_systems(Startup, setup)
         .add_systems(FixedUpdate, metronome)
-        .add_systems(Update, (tap, control, set_bpm_text, set_division_text))
+        .add_systems(Update, (tap, control, set_status_text))
         .run();
 }
 
@@ -61,22 +58,11 @@ fn setup(
     ));
 
     commands.spawn((
-        BpmText,
+        StatusText,
         Text::new(""),
         Node {
             position_type: PositionType::Absolute,
             top: Val::Px(12.0),
-            left: Val::Px(12.0),
-            ..Default::default()
-        },
-    ));
-
-    commands.spawn((
-        DivisionText,
-        Text::new(""),
-        Node {
-            position_type: PositionType::Absolute,
-            top: Val::Px(36.0),
             left: Val::Px(12.0),
             ..Default::default()
         },
@@ -134,14 +120,14 @@ fn control(
     }
 
     if keyboard_input.just_pressed(KeyCode::ArrowRight) {
-        let next_bpm = bpm(&timer).round() as u32 + 5;
+        let next_bpm = bpm(&timer).round() as u32 + 10;
         timer.set_timestep(from_bpm(next_bpm as f32));
     }
 
     if keyboard_input.just_pressed(KeyCode::ArrowDown) {
         let current_bpm = bpm(&timer).round() as u32;
 
-        if current_bpm >= 1 {
+        if current_bpm > 1 {
             let next_bpm = current_bpm - 1;
             timer.set_timestep(from_bpm(next_bpm as f32));
         }
@@ -150,10 +136,13 @@ fn control(
     if keyboard_input.just_pressed(KeyCode::ArrowLeft) {
         let current_bpm = bpm(&timer).round() as u32;
 
-        if current_bpm >= 5 {
-            let next_bpm = current_bpm - 5;
-            timer.set_timestep(from_bpm(next_bpm as f32));
-        }
+        let next_bpm = if current_bpm > 10 {
+            current_bpm - 10
+        } else {
+            1
+        };
+
+        timer.set_timestep(from_bpm(next_bpm as f32));
     }
 
     if keyboard_input.just_pressed(KeyCode::BracketLeft) {
@@ -167,14 +156,12 @@ fn control(
     }
 }
 
-fn set_bpm_text(timer: Res<Time<Fixed>>, mut query: Query<&mut Text, With<BpmText>>) {
-    if timer.is_changed() {
-        query.single_mut().0 = format!("BPM: {:.2}", bpm(&timer));
-    }
-}
-
-fn set_division_text(division: Res<Division>, mut query: Query<&mut Text, With<DivisionText>>) {
-    if division.is_changed() {
-        query.single_mut().0 = format!("1 / {}", division.0);
+fn set_status_text(
+    timer: Res<Time<Fixed>>,
+    division: Res<Division>,
+    mut query: Query<&mut Text, With<StatusText>>,
+) {
+    if timer.is_changed() || division.is_changed() {
+        query.single_mut().0 = format!("BPM: {}\n1 / {}", bpm(&timer) as u32, division.0);
     }
 }
