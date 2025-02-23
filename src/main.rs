@@ -229,7 +229,7 @@ fn set_status_text(
     mut query: Query<&mut Text, With<StatusText>>,
 ) {
     if timer.is_changed() || division.is_changed() {
-        query.single_mut().0 = format!("BPM: {}\n1 / {}", bpm(&timer) as u32, division.0);
+        query.single_mut().0 = format!("BPM: {}\n1 / {}", bpm(&timer).round() as u32, division.0);
     }
 }
 
