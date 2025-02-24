@@ -30,8 +30,21 @@ struct Division(u32);
 #[derive(Resource)]
 struct TapDeltas(VecDeque<f64>);
 
-#[derive(Resource)]
-struct Mute(bool);
+#[derive(Resource, Default)]
+struct Mute {
+    global_mute: bool,
+    tap_mute: bool,
+}
+
+impl Mute {
+    fn tap_mute(&self) -> bool {
+        self.global_mute || self.tap_mute
+    }
+
+    fn tick_mute(&self) -> bool {
+        self.global_mute
+    }
+}
 
 #[derive(Resource)]
 struct HideClock(bool);
@@ -56,7 +69,7 @@ fn main() {
         .insert_resource(LastTick(Instant::now()))
         .insert_resource(Division(1))
         .insert_resource(TapDeltas(VecDeque::new()))
-        .insert_resource(Mute(false))
+        .insert_resource(Mute::default())
         .insert_resource(HideClock(false))
         .add_systems(Startup, setup)
         .add_systems(FixedUpdate, metronome)
@@ -132,7 +145,7 @@ fn setup(
 
     commands.spawn((
         Text::new(
-            "up/down: BPM +-1\nleft/right: BPM +-10\n[/]: Division +-1\nm: Mute\n,: Hide Clock",
+            "up/down: BPM +-1\nleft/right: BPM +-10\n[/]: Division +-1\nn: Tap Mute\nm: Global Mute\n,: Hide Clock",
         ),
         Node {
             position_type: PositionType::Absolute,
@@ -172,7 +185,7 @@ fn tap(
     mute: Res<Mute>,
 ) {
     if keyboard_input.get_just_pressed().count() > 0 {
-        if !mute.0 {
+        if !mute.tap_mute() {
             commands.spawn((
                 AudioPlayer::new(asset_server.load(TAP_AUDIO_PATH)),
                 PlaybackSettings::DESPAWN,
@@ -208,7 +221,7 @@ fn metronome(
     mut last_tick: ResMut<LastTick>,
     mute: Res<Mute>,
 ) {
-    if !mute.0 {
+    if !mute.tick_mute() {
         commands.spawn((
             AudioPlayer::new(asset_server.load(CLICK_AUDIO_PATH)),
             PlaybackSettings::DESPAWN,
@@ -264,7 +277,11 @@ fn control(
     }
 
     if keyboard_input.just_pressed(KeyCode::KeyM) {
-        mute.0 = !mute.0;
+        mute.global_mute = !mute.global_mute;
+    }
+
+    if keyboard_input.just_pressed(KeyCode::KeyN) {
+        mute.tap_mute = !mute.tap_mute;
     }
 
     if keyboard_input.just_pressed(KeyCode::Comma) {
@@ -280,10 +297,11 @@ fn set_status_text(
 ) {
     if timer.is_changed() || division.is_changed() || mute.is_changed() {
         query.single_mut().0 = format!(
-            "BPM: {}\n1 / {}\nMute: {}",
+            "BPM: {}\n1 / {}\nGlobal Mute: {}\nTap Mute: {}",
             bpm(&timer).round() as u32,
             division.0,
-            mute.0
+            mute.global_mute,
+            mute.tap_mute
         );
     }
 }
