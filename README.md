@@ -2,6 +2,8 @@
 
 A simple trainer app for rhythm gamers.
 
+You can also play it on [web page](https://hatoo.github.io/tempo-trainer/).
+
 ![Tempo Trainer demo](demo.png)
 
 # Usage
