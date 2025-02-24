@@ -1,7 +1,6 @@
-use std::{
-    collections::VecDeque,
-    time::{Duration, Instant},
-};
+use std::collections::VecDeque;
+
+use bevy::utils::{Duration, Instant};
 
 use bevy::{
     diagnostic::{DiagnosticsStore, EntityCountDiagnosticsPlugin, FrameTimeDiagnosticsPlugin},
