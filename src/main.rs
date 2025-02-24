@@ -1,5 +1,6 @@
 use std::collections::VecDeque;
 
+use bevy::sprite::Anchor;
 use bevy::utils::{Duration, Instant};
 
 use bevy::{
@@ -13,6 +14,8 @@ const TAP_AUDIO_PATH: &str = "sounds/c4.ogg";
 
 const CIRCLE_SIZE: f32 = 400.0;
 const BINS: usize = 16;
+
+const BAR_HEIGHT_MULTIPLIER: f32 = 4000.0;
 
 #[derive(Component)]
 struct StatusText;
@@ -156,7 +159,78 @@ fn setup(
         },
     ));
 
-    commands.spawn(BarChart::new(&mut meshes, &mut materials));
+    // Bar chart
+
+    // TODO: Can it be plugin?
+    // Line y=0
+    commands.spawn((
+        Mesh2d(meshes.add(Mesh::from(Rectangle {
+            half_size: Vec2::new(1000.0, 2.0),
+        }))),
+        MeshMaterial2d(materials.add(Color::BLACK)),
+        Transform::from_xyz(0.0, 0.0, 2.0),
+    ));
+
+    // Line y=+=1/60 iidx
+    commands.spawn((
+        Text2d::new("1/60"),
+        Transform::from_xyz(-968.0, 1.0 / 60.0 * BAR_HEIGHT_MULTIPLIER, 2.0),
+        Anchor::CenterRight,
+    ));
+    commands.spawn((
+        Mesh2d(meshes.add(Mesh::from(Rectangle {
+            half_size: Vec2::new(1000.0, 1.5),
+        }))),
+        MeshMaterial2d(materials.add(Color::BLACK)),
+        Transform::from_xyz(0.0, 1.0 / 60.0 * BAR_HEIGHT_MULTIPLIER, 2.0),
+    ));
+    commands.spawn((
+        Mesh2d(meshes.add(Mesh::from(Rectangle {
+            half_size: Vec2::new(1000.0, 1.5),
+        }))),
+        MeshMaterial2d(materials.add(Color::BLACK)),
+        Transform::from_xyz(0.0, -1.0 / 60.0 * BAR_HEIGHT_MULTIPLIER, 2.0),
+    ));
+    // line y=+-1.5/60 popn
+    commands.spawn((
+        Text2d::new("1.5/60"),
+        Transform::from_xyz(-968.0, 1.5 / 60.0 * BAR_HEIGHT_MULTIPLIER, 2.0),
+        Anchor::CenterRight,
+    ));
+    commands.spawn((
+        Mesh2d(meshes.add(Mesh::from(Rectangle {
+            half_size: Vec2::new(1000.0, 1.0),
+        }))),
+        MeshMaterial2d(materials.add(Color::BLACK)),
+        Transform::from_xyz(0.0, 1.5 / 60.0 * BAR_HEIGHT_MULTIPLIER, 2.0),
+    ));
+    commands.spawn((
+        Mesh2d(meshes.add(Mesh::from(Rectangle {
+            half_size: Vec2::new(1000.0, 1.0),
+        }))),
+        MeshMaterial2d(materials.add(Color::BLACK)),
+        Transform::from_xyz(0.0, -1.5 / 60.0 * BAR_HEIGHT_MULTIPLIER, 2.0),
+    ));
+    // line y=+=2/60 sdvx and other common games
+    commands.spawn((
+        Text2d::new("2/60"),
+        Transform::from_xyz(-968.0, 2.0 / 60.0 * BAR_HEIGHT_MULTIPLIER, 2.0),
+        Anchor::CenterRight,
+    ));
+    commands.spawn((
+        Mesh2d(meshes.add(Mesh::from(Rectangle {
+            half_size: Vec2::new(1000.0, 0.5),
+        }))),
+        MeshMaterial2d(materials.add(Color::BLACK)),
+        Transform::from_xyz(0.0, 2.0 / 60.0 * BAR_HEIGHT_MULTIPLIER, 2.0),
+    ));
+    commands.spawn((
+        Mesh2d(meshes.add(Mesh::from(Rectangle {
+            half_size: Vec2::new(1000.0, 0.5),
+        }))),
+        MeshMaterial2d(materials.add(Color::BLACK)),
+        Transform::from_xyz(0.0, -2.0 / 60.0 * BAR_HEIGHT_MULTIPLIER, 2.0),
+    ));
     for i in 0..BINS {
         commands.spawn(Bin::new(i, &mut meshes, &mut materials));
         commands.spawn(BinText::new(i));
@@ -322,28 +396,6 @@ fn clock(
     transform.translation = Vec3::new(angle.sin() * CIRCLE_SIZE, angle.cos() * CIRCLE_SIZE, 1.0);
 }
 
-#[derive(Bundle)]
-struct BarChart {
-    line: (Mesh2d, MeshMaterial2d<ColorMaterial>, Transform),
-}
-
-impl BarChart {
-    fn new(
-        meshes: &mut ResMut<Assets<Mesh>>,
-        materials: &mut ResMut<Assets<ColorMaterial>>,
-    ) -> Self {
-        Self {
-            line: (
-                Mesh2d(meshes.add(Mesh::from(Rectangle {
-                    half_size: Vec2::new(1000.0, 1.0),
-                }))),
-                MeshMaterial2d(materials.add(Color::BLACK)),
-                Transform::from_xyz(0.0, 0.0, 2.0),
-            ),
-        }
-    }
-}
-
 #[derive(Component)]
 struct BinIndex(usize);
 
@@ -413,7 +465,7 @@ fn set_bins(
     if tap_deltas.is_changed() {
         for (BinIndex(index), mut material, mut transform, mut visibility) in &mut query_bar {
             if let Some(delta) = tap_deltas.0.get(*index) {
-                let height = *delta as f32 * 4000.0;
+                let height = *delta as f32 * BAR_HEIGHT_MULTIPLIER;
                 transform.translation.y = height / 2.0;
                 transform.scale = Vec3::new(88.0, height, 1.0);
 
