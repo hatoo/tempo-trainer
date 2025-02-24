@@ -483,18 +483,20 @@ fn diagnostics_text_update_system(
     diagnostics: Res<DiagnosticsStore>,
     mut query: Query<&mut Text, With<DiagnosticsText>>,
 ) {
-    let fps = if let Some(fps) = diagnostics.get(&FrameTimeDiagnosticsPlugin::FPS) {
-        if let Some(value) = fps.smoothed() {
-            format!("{value:.2}")
+    if diagnostics.is_changed() {
+        let fps = if let Some(fps) = diagnostics.get(&FrameTimeDiagnosticsPlugin::FPS) {
+            if let Some(value) = fps.smoothed() {
+                format!("{value:.2}")
+            } else {
+                "N/A".to_string()
+            }
         } else {
             "N/A".to_string()
-        }
-    } else {
-        "N/A".to_string()
-    };
+        };
 
-    let entity_count =
-        if let Some(entity_count) = diagnostics.get(&EntityCountDiagnosticsPlugin::ENTITY_COUNT) {
+        let entity_count = if let Some(entity_count) =
+            diagnostics.get(&EntityCountDiagnosticsPlugin::ENTITY_COUNT)
+        {
             if let Some(value) = entity_count.value() {
                 format!("{value:.0}")
             } else {
@@ -504,7 +506,6 @@ fn diagnostics_text_update_system(
             "N/A".to_string()
         };
 
-    if diagnostics.is_changed() {
         for mut span in &mut query {
             **span = format!("entity_count: {entity_count} FPS: {fps}");
         }
