@@ -69,7 +69,7 @@ fn main() {
                 set_status_text,
                 set_bins,
                 set_clock_legend,
-                fps_text_update_system,
+                diagnostics_text_update_system,
                 hide_clock,
             ),
         )
@@ -149,7 +149,7 @@ fn setup(
     }
 
     commands.spawn((
-        FpsText,
+        DiagnosticsText,
         Text::new(""),
         Node {
             position_type: PositionType::Absolute,
@@ -477,11 +477,11 @@ fn set_clock_legend(
 }
 
 #[derive(Component)]
-struct FpsText;
+struct DiagnosticsText;
 
-fn fps_text_update_system(
+fn diagnostics_text_update_system(
     diagnostics: Res<DiagnosticsStore>,
-    mut query: Query<&mut Text, With<FpsText>>,
+    mut query: Query<&mut Text, With<DiagnosticsText>>,
 ) {
     let fps = if let Some(fps) = diagnostics.get(&FrameTimeDiagnosticsPlugin::FPS) {
         if let Some(value) = fps.smoothed() {
