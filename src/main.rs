@@ -8,7 +8,7 @@ use bevy::{
     render::{camera::ScalingMode, mesh::CircleMeshBuilder},
 };
 
-const CLICK_AUDIO_PATH: &str = "sounds/c5.ogg";
+const TICK_AUDIO_PATH: &str = "sounds/c5.ogg";
 const TAP_AUDIO_PATH: &str = "sounds/c4.ogg";
 
 const CIRCLE_SIZE: f32 = 400.0;
@@ -40,6 +40,12 @@ struct HideClock(bool);
 
 #[derive(Component)]
 struct Clock;
+
+#[derive(Resource)]
+struct AudioHandles {
+    tick: Handle<AudioSource>,
+    tap: Handle<AudioSource>,
+}
 
 fn main() {
     App::new()
@@ -90,7 +96,13 @@ fn setup(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
+    asset_server: Res<AssetServer>,
 ) {
+    commands.insert_resource(AudioHandles {
+        tick: asset_server.load(TICK_AUDIO_PATH),
+        tap: asset_server.load(TAP_AUDIO_PATH),
+    });
+
     commands.spawn((
         Camera2d,
         Projection::Orthographic(OrthographicProjection {
@@ -165,7 +177,7 @@ fn setup(
 #[allow(clippy::too_many_arguments)]
 fn tap(
     mut commands: Commands,
-    asset_server: Res<AssetServer>,
+    audio_handles: Res<AudioHandles>,
     keyboard_input: Res<ButtonInput<KeyCode>>,
     last_tick: Res<LastTick>,
     timer: Res<Time<Fixed>>,
@@ -176,7 +188,7 @@ fn tap(
     if keyboard_input.get_just_pressed().count() > 0 {
         if !mute.tap_mute {
             commands.spawn((
-                AudioPlayer::new(asset_server.load(TAP_AUDIO_PATH)),
+                AudioPlayer::new(audio_handles.tap.clone()),
                 PlaybackSettings::DESPAWN,
             ));
         }
@@ -206,13 +218,13 @@ fn tap(
 
 fn metronome(
     mut commands: Commands,
-    asset_server: Res<AssetServer>,
+    audio_handles: Res<AudioHandles>,
     mut last_tick: ResMut<LastTick>,
     mute: Res<Mute>,
 ) {
     if !mute.tick_mute {
         commands.spawn((
-            AudioPlayer::new(asset_server.load(CLICK_AUDIO_PATH)),
+            AudioPlayer::new(audio_handles.tick.clone()),
             PlaybackSettings::DESPAWN,
         ));
     }
