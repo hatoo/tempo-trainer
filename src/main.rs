@@ -254,13 +254,17 @@ fn tap(
     audio_handles: Res<AudioHandles>,
     keyboard_input: Res<ButtonInput<KeyCode>>,
     buttons: Res<ButtonInput<MouseButton>>,
+    touches: Res<Touches>,
     last_tick: Res<LastTick>,
     timer: Res<Time<Fixed>>,
     division: Res<Division>,
     mut tap_deltas: ResMut<TapDeltas>,
     mute: Res<Mute>,
 ) {
-    if keyboard_input.get_just_pressed().count() > 0 || buttons.get_just_pressed().count() > 0 {
+    if keyboard_input.get_just_pressed().count() > 0
+        || buttons.get_just_pressed().count() > 0
+        || touches.any_just_pressed()
+    {
         if !mute.tap_mute {
             commands.spawn((
                 AudioPlayer::new(audio_handles.tap.clone()),
