@@ -161,80 +161,83 @@ fn setup(
 
     // Bar chart
 
-    // TODO: Can it be plugin?
-    // Line y=0
-    commands.spawn((
-        Mesh2d(meshes.add(Mesh::from(Rectangle {
-            half_size: Vec2::new(1000.0, 2.0),
-        }))),
-        MeshMaterial2d(materials.add(Color::BLACK)),
-        Transform::from_xyz(0.0, 0.0, 2.0),
-    ));
+    commands
+        .spawn(Transform::default())
+        .with_children(|commands| {
+            // Line y=0
+            commands.spawn((
+                Mesh2d(meshes.add(Mesh::from(Rectangle {
+                    half_size: Vec2::new(1000.0, 2.0),
+                }))),
+                MeshMaterial2d(materials.add(Color::BLACK)),
+                Transform::from_xyz(0.0, 0.0, 2.0),
+            ));
 
-    // Line y=+=1/60 iidx
-    commands.spawn((
-        Text2d::new("1/60"),
-        Transform::from_xyz(-968.0, 1.0 / 60.0 * BAR_HEIGHT_MULTIPLIER, 2.0),
-        Anchor::CenterRight,
-    ));
-    commands.spawn((
-        Mesh2d(meshes.add(Mesh::from(Rectangle {
-            half_size: Vec2::new(1000.0, 1.5),
-        }))),
-        MeshMaterial2d(materials.add(Color::BLACK)),
-        Transform::from_xyz(0.0, 1.0 / 60.0 * BAR_HEIGHT_MULTIPLIER, 2.0),
-    ));
-    commands.spawn((
-        Mesh2d(meshes.add(Mesh::from(Rectangle {
-            half_size: Vec2::new(1000.0, 1.5),
-        }))),
-        MeshMaterial2d(materials.add(Color::BLACK)),
-        Transform::from_xyz(0.0, -1.0 / 60.0 * BAR_HEIGHT_MULTIPLIER, 2.0),
-    ));
-    // line y=+-1.5/60 popn
-    commands.spawn((
-        Text2d::new("1.5/60"),
-        Transform::from_xyz(-968.0, 1.5 / 60.0 * BAR_HEIGHT_MULTIPLIER, 2.0),
-        Anchor::CenterRight,
-    ));
-    commands.spawn((
-        Mesh2d(meshes.add(Mesh::from(Rectangle {
-            half_size: Vec2::new(1000.0, 1.0),
-        }))),
-        MeshMaterial2d(materials.add(Color::BLACK)),
-        Transform::from_xyz(0.0, 1.5 / 60.0 * BAR_HEIGHT_MULTIPLIER, 2.0),
-    ));
-    commands.spawn((
-        Mesh2d(meshes.add(Mesh::from(Rectangle {
-            half_size: Vec2::new(1000.0, 1.0),
-        }))),
-        MeshMaterial2d(materials.add(Color::BLACK)),
-        Transform::from_xyz(0.0, -1.5 / 60.0 * BAR_HEIGHT_MULTIPLIER, 2.0),
-    ));
-    // line y=+=2/60 sdvx and other common games
-    commands.spawn((
-        Text2d::new("2/60"),
-        Transform::from_xyz(-968.0, 2.0 / 60.0 * BAR_HEIGHT_MULTIPLIER, 2.0),
-        Anchor::CenterRight,
-    ));
-    commands.spawn((
-        Mesh2d(meshes.add(Mesh::from(Rectangle {
-            half_size: Vec2::new(1000.0, 0.5),
-        }))),
-        MeshMaterial2d(materials.add(Color::BLACK)),
-        Transform::from_xyz(0.0, 2.0 / 60.0 * BAR_HEIGHT_MULTIPLIER, 2.0),
-    ));
-    commands.spawn((
-        Mesh2d(meshes.add(Mesh::from(Rectangle {
-            half_size: Vec2::new(1000.0, 0.5),
-        }))),
-        MeshMaterial2d(materials.add(Color::BLACK)),
-        Transform::from_xyz(0.0, -2.0 / 60.0 * BAR_HEIGHT_MULTIPLIER, 2.0),
-    ));
-    for i in 0..BINS {
-        commands.spawn(Bin::new(i, &mut meshes, &mut materials));
-        commands.spawn(BinText::new(i));
-    }
+            // Line y=+=1/60 iidx
+            commands.spawn((
+                Text2d::new("1/60"),
+                Transform::from_xyz(-968.0, 1.0 / 60.0 * BAR_HEIGHT_MULTIPLIER, 2.0),
+                Anchor::CenterRight,
+            ));
+            commands.spawn((
+                Mesh2d(meshes.add(Mesh::from(Rectangle {
+                    half_size: Vec2::new(1000.0, 1.5),
+                }))),
+                MeshMaterial2d(materials.add(Color::BLACK)),
+                Transform::from_xyz(0.0, 1.0 / 60.0 * BAR_HEIGHT_MULTIPLIER, 2.0),
+            ));
+            commands.spawn((
+                Mesh2d(meshes.add(Mesh::from(Rectangle {
+                    half_size: Vec2::new(1000.0, 1.5),
+                }))),
+                MeshMaterial2d(materials.add(Color::BLACK)),
+                Transform::from_xyz(0.0, -1.0 / 60.0 * BAR_HEIGHT_MULTIPLIER, 2.0),
+            ));
+            // line y=+-1.5/60 popn
+            commands.spawn((
+                Text2d::new("1.5/60"),
+                Transform::from_xyz(-968.0, 1.5 / 60.0 * BAR_HEIGHT_MULTIPLIER, 2.0),
+                Anchor::CenterRight,
+            ));
+            commands.spawn((
+                Mesh2d(meshes.add(Mesh::from(Rectangle {
+                    half_size: Vec2::new(1000.0, 1.0),
+                }))),
+                MeshMaterial2d(materials.add(Color::BLACK)),
+                Transform::from_xyz(0.0, 1.5 / 60.0 * BAR_HEIGHT_MULTIPLIER, 2.0),
+            ));
+            commands.spawn((
+                Mesh2d(meshes.add(Mesh::from(Rectangle {
+                    half_size: Vec2::new(1000.0, 1.0),
+                }))),
+                MeshMaterial2d(materials.add(Color::BLACK)),
+                Transform::from_xyz(0.0, -1.5 / 60.0 * BAR_HEIGHT_MULTIPLIER, 2.0),
+            ));
+            // line y=+=2/60 sdvx and other common games
+            commands.spawn((
+                Text2d::new("2/60"),
+                Transform::from_xyz(-968.0, 2.0 / 60.0 * BAR_HEIGHT_MULTIPLIER, 2.0),
+                Anchor::CenterRight,
+            ));
+            commands.spawn((
+                Mesh2d(meshes.add(Mesh::from(Rectangle {
+                    half_size: Vec2::new(1000.0, 0.5),
+                }))),
+                MeshMaterial2d(materials.add(Color::BLACK)),
+                Transform::from_xyz(0.0, 2.0 / 60.0 * BAR_HEIGHT_MULTIPLIER, 2.0),
+            ));
+            commands.spawn((
+                Mesh2d(meshes.add(Mesh::from(Rectangle {
+                    half_size: Vec2::new(1000.0, 0.5),
+                }))),
+                MeshMaterial2d(materials.add(Color::BLACK)),
+                Transform::from_xyz(0.0, -2.0 / 60.0 * BAR_HEIGHT_MULTIPLIER, 2.0),
+            ));
+            for i in 0..BINS {
+                commands.spawn(Bin::new(i, &mut meshes, &mut materials));
+                commands.spawn(BinText::new(i));
+            }
+        });
 
     commands.spawn((
         DiagnosticsText,
@@ -526,29 +529,30 @@ fn set_clock_legend(
             commands.entity(e).despawn_recursive();
         }
 
-        let parent = parent.single();
-        let division = division.0;
+        for parent in &parent {
+            let division = division.0;
 
-        // TODO: reuse mesh and material handles
-        let mesh = Mesh2d(meshes.add(Mesh::from(Circle { radius: 16.0 })));
-        let material = MeshMaterial2d(materials.add(Color::linear_rgb(0.1, 0.3, 0.1)));
+            // TODO: reuse mesh and material handles
+            let mesh = Mesh2d(meshes.add(Mesh::from(Circle { radius: 16.0 })));
+            let material = MeshMaterial2d(materials.add(Color::linear_rgb(0.1, 0.3, 0.1)));
 
-        commands.entity(parent).with_children(|commands| {
-            for bundle in (0..division).map(|i| {
-                let angle = 2.0 * std::f32::consts::PI * (i as f32 / division as f32);
-                let x = angle.sin() * CIRCLE_SIZE;
-                let y = angle.cos() * CIRCLE_SIZE;
+            commands.entity(parent).with_children(|commands| {
+                for bundle in (0..division).map(|i| {
+                    let angle = 2.0 * std::f32::consts::PI * (i as f32 / division as f32);
+                    let x = angle.sin() * CIRCLE_SIZE;
+                    let y = angle.cos() * CIRCLE_SIZE;
 
-                (
-                    ClockLegend,
-                    mesh.clone(),
-                    material.clone(),
-                    Transform::from_xyz(x, y, 3.0),
-                )
-            }) {
-                commands.spawn(bundle);
-            }
-        });
+                    (
+                        ClockLegend,
+                        mesh.clone(),
+                        material.clone(),
+                        Transform::from_xyz(x, y, 3.0),
+                    )
+                }) {
+                    commands.spawn(bundle);
+                }
+            });
+        }
     }
 }
 
