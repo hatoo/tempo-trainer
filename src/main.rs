@@ -172,33 +172,45 @@ fn setup(
             ));
         });
 
-    commands.spawn((
-        StatusText,
-        Text::new(""),
+    commands.spawn(
         Node {
             position_type: PositionType::Absolute,
+            display: Display::Flex,
+            flex_direction: FlexDirection::Row,
             top: Val::Px(12.0),
-            left: Val::Px(12.0),
+            left: Val::Px(0.0),
             ..Default::default()
         },
-    ));
+    ).with_children(|commands| {
+        commands.spawn((
+            StatusText,
+            Text::new(""),
+            Node {
+                margin: UiRect {
+                    left: Val::Px(12.0),
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+        ));
 
-    commands.spawn((
-        Text::new(
-            "up/down: BPM +-1\nleft/right: BPM +-10\n[/]: Division +-1\nn: Tap Mute\nm: Tick Mute\n,: Hide Clock",
-        ),
-        Node {
-            position_type: PositionType::Absolute,
-            top: Val::Px(12.0),
-            left: Val::Px(240.0),
-            ..Default::default()
-        },
-    ));
+        commands.spawn((
+            Text::new(
+                "up/down: BPM +-1\nleft/right: BPM +-10\n[/]: Division +-1\nn: Tap Mute\nm: Tick Mute\n,: Hide Clock",
+            ),
+            Node {
+                margin: UiRect {
+                    left: Val::Px(12.0),
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+        ));
+    });
 
     // Bar chart
-
     commands
-        .spawn(Transform::default())
+        .spawn((Transform::default(), Visibility::Visible))
         .with_children(|commands| {
             // Line y=0
             commands.spawn((
@@ -469,13 +481,15 @@ fn set_status_text(
     mut query: Query<&mut Text, With<StatusText>>,
 ) {
     if timer.is_changed() || division.is_changed() || mute.is_changed() {
-        query.single_mut().0 = format!(
-            "BPM: {}\n1 / {}\nTick Mute: {}\nTap Mute: {}",
-            bpm(&timer).round() as u32,
-            division.0,
-            mute.tick_mute,
-            mute.tap_mute
-        );
+        for mut text in &mut query {
+            text.0 = format!(
+                "BPM: {}\n1 / {}\nTick Mute: {}\nTap Mute: {}",
+                bpm(&timer).round() as u32,
+                division.0,
+                mute.tick_mute,
+                mute.tap_mute
+            );
+        }
     }
 }
 
