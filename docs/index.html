@@ -4,15 +4,29 @@
 <head>
     <style>
         html {
-            height: 100%;
             margin: 0;
         }
 
         body {
             display: flex;
             flex-direction: column;
-            height: 100%;
             margin: 0;
+        }
+
+        @media (max-aspect-ratio: 1/1) {
+
+            html,
+            body {
+                height: calc(100vw * 1/1);
+            }
+        }
+
+        @media not (max-aspect-ratio: 1/1) {
+
+            html,
+            body {
+                height: 100%;
+            }
         }
 
         #screen {
