@@ -239,7 +239,7 @@ fn setup(
                             Node {
                                 position_type: PositionType::Absolute,
                                 width: Val::Percent(100.0),
-                                height: Val::Px(f / 60.0 * BAR_HEIGHT_MULTIPLIER - height / 2.0),
+                                height: Val::Px(f / 60.0 * BAR_HEIGHT_MULTIPLIER + height / 2.0),
                                 bottom: Val::Percent(50.0),
                                 border: UiRect {
                                     top: Val::Px(height),
@@ -253,7 +253,7 @@ fn setup(
                             Node {
                                 position_type: PositionType::Absolute,
                                 width: Val::Percent(100.0),
-                                height: Val::Px(f / 60.0 * BAR_HEIGHT_MULTIPLIER - height / 2.0),
+                                height: Val::Px(f / 60.0 * BAR_HEIGHT_MULTIPLIER + height / 2.0),
                                 top: Val::Percent(50.0),
                                 border: UiRect {
                                     bottom: Val::Px(height),
