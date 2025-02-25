@@ -145,8 +145,8 @@ fn setup(
     commands.spawn((
         Camera2d,
         Projection::Orthographic(OrthographicProjection {
-            scaling_mode: ScalingMode::FixedVertical {
-                viewport_height: 1200.0,
+            scaling_mode: ScalingMode::FixedHorizontal {
+                viewport_width: 2160.0,
             },
             ..OrthographicProjection::default_2d()
         }),
@@ -290,10 +290,11 @@ fn setup(
 
     let mut node = commands.spawn(Node {
         position_type: PositionType::Absolute,
+        width: Val::Percent(100.),
         bottom: Val::Px(4.0),
-        // align_items: AlignItems::Start,
-        // justify_content: JustifyContent::Center,
-        // align_items: AlignItems::FlexEnd,
+        display: Display::Flex,
+        flex_direction: FlexDirection::Row,
+        flex_wrap: FlexWrap::Wrap,
         ..default()
     });
     let mut add_button = move |kind: ButtonKind| {
@@ -303,17 +304,22 @@ fn setup(
                     Button,
                     kind,
                     Node {
-                        width: Val::Px(105.0),
-                        height: Val::Px(48.0),
-                        border: UiRect::all(Val::Px(5.0)),
+                        // width: Val::Px(105.0),
+                        // height: Val::Px(48.0),
+                        border: UiRect::all(Val::Px(2.0)),
                         // horizontally center child text
                         justify_content: JustifyContent::Center,
                         // vertically center child text
                         align_items: AlignItems::Center,
+                        margin: UiRect {
+                            left: Val::Px(2.0),
+                            right: Val::Px(2.0),
+                            ..Default::default()
+                        },
                         ..default()
                     },
                     BorderColor(Color::BLACK),
-                    BorderRadius::MAX,
+                    BorderRadius::all(Val::Px(4.0)),
                     BackgroundColor(NORMAL_BUTTON),
                 ))
                 .with_child((
