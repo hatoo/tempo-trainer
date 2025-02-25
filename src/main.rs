@@ -145,8 +145,8 @@ fn setup(
     commands.spawn((
         Camera2d,
         Projection::Orthographic(OrthographicProjection {
-            scaling_mode: ScalingMode::FixedVertical {
-                viewport_height: 1200.0,
+            scaling_mode: ScalingMode::FixedHorizontal {
+                viewport_width: 2160.0,
             },
             ..OrthographicProjection::default_2d()
         }),
