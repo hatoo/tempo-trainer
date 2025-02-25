@@ -1,7 +1,5 @@
 use std::collections::VecDeque;
 
-use bevy::scene::ron::de;
-use bevy::sprite::Anchor;
 use bevy::utils::{Duration, Instant};
 
 use bevy::{
@@ -231,6 +229,70 @@ fn setup(
                     ..Default::default()
                 })
                 .with_children(|commands| {
+                    for (f, height, label) in [
+                        (0.0, 4.0, "0"),
+                        (1.0, 3.0, "1/60"),
+                        (1.5, 2.0, "1.5/60"),
+                        (2.0, 1.0, "2/60"),
+                    ] {
+                        commands.spawn((
+                            Node {
+                                position_type: PositionType::Absolute,
+                                width: Val::Percent(100.0),
+                                height: Val::Px(f / 60.0 * BAR_HEIGHT_MULTIPLIER - height / 2.0),
+                                bottom: Val::Percent(50.0),
+                                border: UiRect {
+                                    top: Val::Px(height),
+                                    ..default()
+                                },
+                                ..default()
+                            },
+                            BorderColor(Color::BLACK),
+                        ));
+                        commands.spawn((
+                            Node {
+                                position_type: PositionType::Absolute,
+                                width: Val::Percent(100.0),
+                                height: Val::Px(f / 60.0 * BAR_HEIGHT_MULTIPLIER - height / 2.0),
+                                top: Val::Percent(50.0),
+                                border: UiRect {
+                                    bottom: Val::Px(height),
+                                    ..default()
+                                },
+                                ..default()
+                            },
+                            BorderColor(Color::BLACK),
+                        ));
+
+                        commands
+                            .spawn((
+                                Node {
+                                    position_type: PositionType::Absolute,
+                                    left: Val::Px(-12.0),
+                                    height: Val::Px(f / 60.0 * BAR_HEIGHT_MULTIPLIER),
+                                    width: Val::Percent(100.0),
+                                    bottom: Val::Percent(50.0),
+                                    ..default()
+                                },
+                                // BackgroundColor(Color::linear_rgba(0.0, 1.0, 0.0, 0.3)),
+                            ))
+                            .with_children(|commands| {
+                                commands.spawn((
+                                    Node {
+                                        position_type: PositionType::Absolute,
+                                        right: Val::Percent(100.0),
+                                        bottom: Val::Percent(100.0),
+                                        ..default()
+                                    },
+                                    Text::new(label),
+                                    TextFont {
+                                        font_size: 10.3,
+                                        ..Default::default()
+                                    },
+                                ));
+                            });
+                    }
+
                     for i in 0..BINS {
                         commands
                             .spawn(Node {
@@ -289,86 +351,6 @@ fn setup(
                     }
                 });
         });
-
-    /*
-        commands
-            .spawn((Transform::default(), Visibility::Visible))
-            .with_children(|commands| {
-                // Line y=0
-                commands.spawn((
-                    Mesh2d(meshes.add(Mesh::from(Rectangle {
-                        half_size: Vec2::new(1000.0, 2.0),
-                    }))),
-                    MeshMaterial2d(materials.add(Color::BLACK)),
-                    Transform::from_xyz(0.0, 0.0, 2.0),
-                ));
-
-                // Line y=+=1/60 iidx
-                commands.spawn((
-                    Text2d::new("1/60"),
-                    Transform::from_xyz(-968.0, 1.0 / 60.0 * BAR_HEIGHT_MULTIPLIER, 2.0),
-                    Anchor::CenterRight,
-                ));
-                commands.spawn((
-                    Mesh2d(meshes.add(Mesh::from(Rectangle {
-                        half_size: Vec2::new(1000.0, 1.5),
-                    }))),
-                    MeshMaterial2d(materials.add(Color::BLACK)),
-                    Transform::from_xyz(0.0, 1.0 / 60.0 * BAR_HEIGHT_MULTIPLIER, 2.0),
-                ));
-                commands.spawn((
-                    Mesh2d(meshes.add(Mesh::from(Rectangle {
-                        half_size: Vec2::new(1000.0, 1.5),
-                    }))),
-                    MeshMaterial2d(materials.add(Color::BLACK)),
-                    Transform::from_xyz(0.0, -1.0 / 60.0 * BAR_HEIGHT_MULTIPLIER, 2.0),
-                ));
-                // line y=+-1.5/60 popn
-                commands.spawn((
-                    Text2d::new("1.5/60"),
-                    Transform::from_xyz(-968.0, 1.5 / 60.0 * BAR_HEIGHT_MULTIPLIER, 2.0),
-                    Anchor::CenterRight,
-                ));
-                commands.spawn((
-                    Mesh2d(meshes.add(Mesh::from(Rectangle {
-                        half_size: Vec2::new(1000.0, 1.0),
-                    }))),
-                    MeshMaterial2d(materials.add(Color::BLACK)),
-                    Transform::from_xyz(0.0, 1.5 / 60.0 * BAR_HEIGHT_MULTIPLIER, 2.0),
-                ));
-                commands.spawn((
-                    Mesh2d(meshes.add(Mesh::from(Rectangle {
-                        half_size: Vec2::new(1000.0, 1.0),
-                    }))),
-                    MeshMaterial2d(materials.add(Color::BLACK)),
-                    Transform::from_xyz(0.0, -1.5 / 60.0 * BAR_HEIGHT_MULTIPLIER, 2.0),
-                ));
-                // line y=+=2/60 sdvx and other common games
-                commands.spawn((
-                    Text2d::new("2/60"),
-                    Transform::from_xyz(-968.0, 2.0 / 60.0 * BAR_HEIGHT_MULTIPLIER, 2.0),
-                    Anchor::CenterRight,
-                ));
-                commands.spawn((
-                    Mesh2d(meshes.add(Mesh::from(Rectangle {
-                        half_size: Vec2::new(1000.0, 0.5),
-                    }))),
-                    MeshMaterial2d(materials.add(Color::BLACK)),
-                    Transform::from_xyz(0.0, 2.0 / 60.0 * BAR_HEIGHT_MULTIPLIER, 2.0),
-                ));
-                commands.spawn((
-                    Mesh2d(meshes.add(Mesh::from(Rectangle {
-                        half_size: Vec2::new(1000.0, 0.5),
-                    }))),
-                    MeshMaterial2d(materials.add(Color::BLACK)),
-                    Transform::from_xyz(0.0, -2.0 / 60.0 * BAR_HEIGHT_MULTIPLIER, 2.0),
-                ));
-                for i in 0..BINS {
-                    commands.spawn(Bin::new(i, &mut meshes, &mut materials));
-                    commands.spawn(BinText::new(i));
-                }
-            });
-    */
 
     commands.spawn((
         DiagnosticsText,
@@ -596,52 +578,6 @@ struct BinIndex(usize);
 
 #[derive(Component)]
 struct BinBar;
-
-#[derive(Bundle)]
-struct Bin {
-    index: BinIndex,
-    rect: Mesh2d,
-    material: MeshMaterial2d<ColorMaterial>,
-    transform: Transform,
-    bin_bar: BinBar,
-    visibility: Visibility,
-}
-
-impl Bin {
-    fn new(
-        index: usize,
-        meshes: &mut ResMut<Assets<Mesh>>,
-        materials: &mut ResMut<Assets<ColorMaterial>>,
-    ) -> Self {
-        Self {
-            index: BinIndex(index),
-            rect: Mesh2d(meshes.add(Mesh::from(Rectangle {
-                half_size: Vec2::new(0.5, 0.5),
-            }))),
-            material: MeshMaterial2d(materials.add(Color::linear_rgb(0.0, 0.0, 1.0))),
-            transform: Transform::from_xyz((index as f32 - (BINS / 2) as f32) * 100.0, 0.0, 4.0),
-            bin_bar: BinBar,
-            visibility: Visibility::Hidden,
-        }
-    }
-}
-
-#[derive(Bundle)]
-struct BinText {
-    index: BinIndex,
-    text: Text2d,
-    trandform: Transform,
-}
-
-impl BinText {
-    fn new(index: usize) -> Self {
-        Self {
-            index: BinIndex(index),
-            text: Text2d::new(""),
-            trandform: Transform::from_xyz((index as f32 - (BINS / 2) as f32) * 100.0, 0.0, 8.0),
-        }
-    }
-}
 
 fn set_bins(
     mut query_bar: Query<
