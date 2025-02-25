@@ -4,6 +4,7 @@ use bevy::sprite::Anchor;
 use bevy::utils::{Duration, Instant};
 
 use bevy::{
+    color::palettes::basic::*,
     diagnostic::{DiagnosticsStore, EntityCountDiagnosticsPlugin, FrameTimeDiagnosticsPlugin},
     prelude::*,
     render::{camera::ScalingMode, mesh::CircleMeshBuilder},
@@ -82,6 +83,7 @@ fn main() {
                 set_clock_legend,
                 diagnostics_text_update_system,
                 hide_clock,
+                button_system,
             ),
         )
         .run();
@@ -93,6 +95,38 @@ fn bpm(time: &Time<Fixed>) -> f32 {
 
 fn from_bpm(bpm: f32) -> Duration {
     Duration::from_secs_f32(60.0 / bpm)
+}
+
+const NORMAL_BUTTON: Color = Color::srgb(0.15, 0.15, 0.15);
+const PRESSED_BUTTON: Color = Color::srgb(0.35, 0.75, 0.35);
+
+#[derive(Component, Clone, Copy)]
+enum ButtonKind {
+    BpmUp1,
+    BpmDown1,
+    BpmUp10,
+    BpmDown10,
+    DivisionUp1,
+    DivisionDown1,
+    TapMute,
+    TickMute,
+    HideClock,
+}
+
+impl ButtonKind {
+    fn label(&self) -> &str {
+        match self {
+            ButtonKind::BpmUp1 => "BPM+1",
+            ButtonKind::BpmDown1 => "BPM-1",
+            ButtonKind::BpmUp10 => "BPM+10",
+            ButtonKind::BpmDown10 => "BPM-10",
+            ButtonKind::DivisionUp1 => "Div+",
+            ButtonKind::DivisionDown1 => "Div-",
+            ButtonKind::TapMute => "Tap Mute",
+            ButtonKind::TickMute => "Tick Mute",
+            ButtonKind::HideClock => "Hide Clock",
+        }
+    }
 }
 
 fn setup(
@@ -249,6 +283,54 @@ fn setup(
             ..default()
         },
     ));
+
+    // UI Buttons
+
+    let mut node = commands.spawn(Node {
+        position_type: PositionType::Absolute,
+        bottom: Val::Px(4.0),
+        // align_items: AlignItems::Start,
+        // justify_content: JustifyContent::Center,
+        // align_items: AlignItems::FlexEnd,
+        ..default()
+    });
+    let mut add_button = move |kind: ButtonKind| {
+        node.with_children(|parent| {
+            parent
+                .spawn((
+                    Button,
+                    kind,
+                    Node {
+                        width: Val::Px(105.0),
+                        height: Val::Px(48.0),
+                        border: UiRect::all(Val::Px(5.0)),
+                        // horizontally center child text
+                        justify_content: JustifyContent::Center,
+                        // vertically center child text
+                        align_items: AlignItems::Center,
+                        ..default()
+                    },
+                    BorderColor(Color::BLACK),
+                    BorderRadius::MAX,
+                    BackgroundColor(NORMAL_BUTTON),
+                ))
+                .with_child((
+                    Text::new(kind.label()),
+                    TextColor(Color::srgb(0.9, 0.9, 0.9)),
+                ));
+        });
+    };
+    add_button(ButtonKind::BpmDown10);
+    add_button(ButtonKind::BpmDown1);
+    add_button(ButtonKind::BpmUp1);
+    add_button(ButtonKind::BpmUp10);
+
+    add_button(ButtonKind::DivisionDown1);
+    add_button(ButtonKind::DivisionUp1);
+
+    add_button(ButtonKind::TapMute);
+    add_button(ButtonKind::TickMute);
+    add_button(ButtonKind::HideClock);
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -588,6 +670,84 @@ fn diagnostics_text_update_system(
 
         for mut span in &mut query {
             **span = format!("entity_count: {entity_count} FPS: {fps}");
+        }
+    }
+}
+
+#[allow(clippy::type_complexity)]
+fn button_system(
+    mut interaction_query: Query<
+        (
+            &Interaction,
+            &mut BackgroundColor,
+            &mut BorderColor,
+            &ButtonKind,
+        ),
+        (Changed<Interaction>, With<Button>),
+    >,
+
+    mut timer: ResMut<Time<Fixed>>,
+    mut division: ResMut<Division>,
+    mut mute: ResMut<Mute>,
+    mut hide_clock: ResMut<HideClock>,
+) {
+    for (interaction, mut color, mut border_color, button_kind) in &mut interaction_query {
+        match *interaction {
+            Interaction::Pressed => {
+                *color = PRESSED_BUTTON.into();
+                border_color.0 = RED.into();
+
+                match button_kind {
+                    ButtonKind::BpmUp1 => {
+                        let next_bpm = bpm(&timer).round() as u32 + 1;
+                        timer.set_timestep(from_bpm(next_bpm as f32));
+                    }
+                    ButtonKind::BpmDown1 => {
+                        let current_bpm = bpm(&timer).round() as u32;
+
+                        if current_bpm > 1 {
+                            let next_bpm = current_bpm - 1;
+                            timer.set_timestep(from_bpm(next_bpm as f32));
+                        }
+                    }
+                    ButtonKind::BpmUp10 => {
+                        let next_bpm = bpm(&timer).round() as u32 + 10;
+                        timer.set_timestep(from_bpm(next_bpm as f32));
+                    }
+                    ButtonKind::BpmDown10 => {
+                        let current_bpm = bpm(&timer).round() as u32;
+
+                        let next_bpm = if current_bpm > 10 {
+                            current_bpm - 10
+                        } else {
+                            1
+                        };
+
+                        timer.set_timestep(from_bpm(next_bpm as f32));
+                    }
+                    ButtonKind::DivisionUp1 => {
+                        division.0 += 1;
+                    }
+                    ButtonKind::DivisionDown1 => {
+                        if division.0 > 1 {
+                            division.0 -= 1;
+                        }
+                    }
+                    ButtonKind::TapMute => {
+                        mute.tap_mute = !mute.tap_mute;
+                    }
+                    ButtonKind::TickMute => {
+                        mute.tick_mute = !mute.tick_mute;
+                    }
+                    ButtonKind::HideClock => {
+                        hide_clock.0 = !hide_clock.0;
+                    }
+                }
+            }
+            Interaction::None | Interaction::Hovered => {
+                *color = NORMAL_BUTTON.into();
+                border_color.0 = Color::BLACK;
+            }
         }
     }
 }
