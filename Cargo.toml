@@ -5,3 +5,7 @@ edition = "2024"
 
 [dependencies]
 bevy = "0.15.3"
+
+[profile.web]
+inherits = "release"
+opt-level = 'z'

@@ -17,11 +17,13 @@ jobs:
         with:
           targets: wasm32-unknown-unknown
       - uses: Swatinem/rust-cache@v2
-      - run: cargo install wasm-bindgen-cli
+      - run: cargo install wasm-bindgen-cli --locked --version 0.2.100
+      - run: cargo install wasm-opt --locked --version 0.116.1
       - name: Build
-        run: cargo build --release --target wasm32-unknown-unknown
+        run: cargo build --profile web --target wasm32-unknown-unknown
       - name: wasm-bindgen
-        run: wasm-bindgen --no-typescript --target web --out-dir ./docs/ --out-name "tempo-trainer" ./target/wasm32-unknown-unknown/release/tempo-trainer.wasm
+        run: wasm-bindgen --no-typescript --target web --out-dir ./docs/ --out-name "tempo-trainer" ./target/wasm32-unknown-unknown/web/tempo-trainer.wasm
+      - run: wasm-opt -Oz ./docs/tempo-trainer_bg.wasm -o output.wasm && mv output.wasm ./docs/tempo-trainer_bg.wasm
       - run: cp -r assets docs/
       - name: Upload static files as artifact
         id: deployment
