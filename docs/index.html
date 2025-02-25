@@ -1,6 +1,26 @@
 <!doctype html>
 <html lang="en">
 
+<head>
+    <style>
+        html {
+            height: 100%;
+            margin: 0;
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            margin: 0;
+        }
+
+        #screen {
+            flex-grow: 1;
+        }
+    </style>
+</head>
+
 <script>
     (function () {
         // An array of all contexts to resume on the page
@@ -60,9 +80,10 @@
     })();
 </script>
 
-<body style="margin: 0px;">
+<body>
     <h1><a href="https://github.com/hatoo/tempo-trainer">hatoo/tempo-trainer</a></h1>
 
+    <canvas id="screen"></canvas>
     <script type="module">
 
         import init from './tempo-trainer.js'

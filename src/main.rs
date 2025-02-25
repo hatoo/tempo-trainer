@@ -57,6 +57,8 @@ fn main() {
             DefaultPlugins.set(WindowPlugin {
                 primary_window: Some(Window {
                     title: "tempo-trainer".to_string(),
+                    canvas: Some("#screen".to_string()),
+                    fit_canvas_to_parent: true,
                     ..Default::default()
                 }),
                 ..Default::default()
