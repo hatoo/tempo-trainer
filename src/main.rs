@@ -1,6 +1,5 @@
 use std::collections::VecDeque;
 
-use bevy::sprite::Anchor;
 use bevy::utils::{Duration, Instant};
 
 use bevy::{
@@ -172,107 +171,185 @@ fn setup(
             ));
         });
 
-    commands.spawn((
-        StatusText,
-        Text::new(""),
+    commands.spawn(
         Node {
             position_type: PositionType::Absolute,
+            display: Display::Flex,
+            flex_direction: FlexDirection::Row,
             top: Val::Px(12.0),
-            left: Val::Px(12.0),
+            left: Val::Px(0.0),
             ..Default::default()
         },
-    ));
+    ).with_children(|commands| {
+        commands.spawn((
+            StatusText,
+            Text::new(""),
+            Node {
+                margin: UiRect {
+                    left: Val::Px(12.0),
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+        ));
 
-    commands.spawn((
-        Text::new(
-            "up/down: BPM +-1\nleft/right: BPM +-10\n[/]: Division +-1\nn: Tap Mute\nm: Tick Mute\n,: Hide Clock",
-        ),
-        Node {
-            position_type: PositionType::Absolute,
-            top: Val::Px(12.0),
-            left: Val::Px(240.0),
-            ..Default::default()
-        },
-    ));
+        commands.spawn((
+            Text::new(
+                "up/down: BPM +-1\nleft/right: BPM +-10\n[/]: Division +-1\nn: Tap Mute\nm: Tick Mute\n,: Hide Clock",
+            ),
+            Node {
+                margin: UiRect {
+                    left: Val::Px(12.0),
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+        ));
+    });
 
     // Bar chart
 
     commands
-        .spawn(Transform::default())
+        .spawn(Node {
+            width: Val::Percent(100.0),
+            height: Val::Percent(100.0),
+            justify_self: JustifySelf::Center,
+            justify_content: JustifyContent::Center,
+            align_items: AlignItems::Center,
+            ..default()
+        })
         .with_children(|commands| {
-            // Line y=0
-            commands.spawn((
-                Mesh2d(meshes.add(Mesh::from(Rectangle {
-                    half_size: Vec2::new(1000.0, 2.0),
-                }))),
-                MeshMaterial2d(materials.add(Color::BLACK)),
-                Transform::from_xyz(0.0, 0.0, 2.0),
-            ));
+            commands
+                .spawn(Node {
+                    display: Display::Flex,
+                    justify_self: JustifySelf::Center,
+                    flex_direction: FlexDirection::Row,
+                    width: Val::Percent(80.0),
+                    height: Val::Percent(100.0),
+                    ..Default::default()
+                })
+                .with_children(|commands| {
+                    for (f, height, label) in [
+                        (0.0, 4.0, "0"),
+                        (1.0, 3.0, "1/60"),
+                        (1.5, 2.0, "1.5/60"),
+                        (2.0, 1.0, "2/60"),
+                    ] {
+                        commands.spawn((
+                            Node {
+                                position_type: PositionType::Absolute,
+                                width: Val::Percent(100.0),
+                                height: Val::Px(f / 60.0 * BAR_HEIGHT_MULTIPLIER + height / 2.0),
+                                bottom: Val::Percent(50.0),
+                                border: UiRect {
+                                    top: Val::Px(height),
+                                    ..default()
+                                },
+                                ..default()
+                            },
+                            BorderColor(Color::BLACK),
+                        ));
+                        commands.spawn((
+                            Node {
+                                position_type: PositionType::Absolute,
+                                width: Val::Percent(100.0),
+                                height: Val::Px(f / 60.0 * BAR_HEIGHT_MULTIPLIER + height / 2.0),
+                                top: Val::Percent(50.0),
+                                border: UiRect {
+                                    bottom: Val::Px(height),
+                                    ..default()
+                                },
+                                ..default()
+                            },
+                            BorderColor(Color::BLACK),
+                        ));
 
-            // Line y=+=1/60 iidx
-            commands.spawn((
-                Text2d::new("1/60"),
-                Transform::from_xyz(-968.0, 1.0 / 60.0 * BAR_HEIGHT_MULTIPLIER, 2.0),
-                Anchor::CenterRight,
-            ));
-            commands.spawn((
-                Mesh2d(meshes.add(Mesh::from(Rectangle {
-                    half_size: Vec2::new(1000.0, 1.5),
-                }))),
-                MeshMaterial2d(materials.add(Color::BLACK)),
-                Transform::from_xyz(0.0, 1.0 / 60.0 * BAR_HEIGHT_MULTIPLIER, 2.0),
-            ));
-            commands.spawn((
-                Mesh2d(meshes.add(Mesh::from(Rectangle {
-                    half_size: Vec2::new(1000.0, 1.5),
-                }))),
-                MeshMaterial2d(materials.add(Color::BLACK)),
-                Transform::from_xyz(0.0, -1.0 / 60.0 * BAR_HEIGHT_MULTIPLIER, 2.0),
-            ));
-            // line y=+-1.5/60 popn
-            commands.spawn((
-                Text2d::new("1.5/60"),
-                Transform::from_xyz(-968.0, 1.5 / 60.0 * BAR_HEIGHT_MULTIPLIER, 2.0),
-                Anchor::CenterRight,
-            ));
-            commands.spawn((
-                Mesh2d(meshes.add(Mesh::from(Rectangle {
-                    half_size: Vec2::new(1000.0, 1.0),
-                }))),
-                MeshMaterial2d(materials.add(Color::BLACK)),
-                Transform::from_xyz(0.0, 1.5 / 60.0 * BAR_HEIGHT_MULTIPLIER, 2.0),
-            ));
-            commands.spawn((
-                Mesh2d(meshes.add(Mesh::from(Rectangle {
-                    half_size: Vec2::new(1000.0, 1.0),
-                }))),
-                MeshMaterial2d(materials.add(Color::BLACK)),
-                Transform::from_xyz(0.0, -1.5 / 60.0 * BAR_HEIGHT_MULTIPLIER, 2.0),
-            ));
-            // line y=+=2/60 sdvx and other common games
-            commands.spawn((
-                Text2d::new("2/60"),
-                Transform::from_xyz(-968.0, 2.0 / 60.0 * BAR_HEIGHT_MULTIPLIER, 2.0),
-                Anchor::CenterRight,
-            ));
-            commands.spawn((
-                Mesh2d(meshes.add(Mesh::from(Rectangle {
-                    half_size: Vec2::new(1000.0, 0.5),
-                }))),
-                MeshMaterial2d(materials.add(Color::BLACK)),
-                Transform::from_xyz(0.0, 2.0 / 60.0 * BAR_HEIGHT_MULTIPLIER, 2.0),
-            ));
-            commands.spawn((
-                Mesh2d(meshes.add(Mesh::from(Rectangle {
-                    half_size: Vec2::new(1000.0, 0.5),
-                }))),
-                MeshMaterial2d(materials.add(Color::BLACK)),
-                Transform::from_xyz(0.0, -2.0 / 60.0 * BAR_HEIGHT_MULTIPLIER, 2.0),
-            ));
-            for i in 0..BINS {
-                commands.spawn(Bin::new(i, &mut meshes, &mut materials));
-                commands.spawn(BinText::new(i));
-            }
+                        commands
+                            .spawn((
+                                Node {
+                                    position_type: PositionType::Absolute,
+                                    left: Val::Px(-12.0),
+                                    height: Val::Px(f / 60.0 * BAR_HEIGHT_MULTIPLIER),
+                                    width: Val::Percent(100.0),
+                                    bottom: Val::Percent(50.0),
+                                    ..default()
+                                },
+                                // BackgroundColor(Color::linear_rgba(0.0, 1.0, 0.0, 0.3)),
+                            ))
+                            .with_children(|commands| {
+                                commands.spawn((
+                                    Node {
+                                        position_type: PositionType::Absolute,
+                                        right: Val::Percent(100.0),
+                                        bottom: Val::Percent(100.0),
+                                        ..default()
+                                    },
+                                    Text::new(label),
+                                    TextFont {
+                                        font_size: 10.3,
+                                        ..Default::default()
+                                    },
+                                ));
+                            });
+                    }
+
+                    for i in 0..BINS {
+                        commands
+                            .spawn(Node {
+                                margin: UiRect {
+                                    left: Val::Px(4.0),
+                                    right: Val::Px(4.0),
+                                    ..default()
+                                },
+                                flex_grow: 1.0,
+                                flex_basis: Val::Px(0.0),
+                                justify_content: JustifyContent::Center,
+                                justify_self: JustifySelf::Center,
+                                align_items: AlignItems::Center,
+                                ..default()
+                            })
+                            .with_children(|commands| {
+                                commands
+                                    .spawn((
+                                        Node {
+                                            width: Val::Percent(100.0),
+                                            height: Val::Percent(100.0),
+                                            justify_content: JustifyContent::Center,
+                                            justify_self: JustifySelf::Center,
+                                            align_items: AlignItems::Center,
+                                            ..default()
+                                        },
+                                        // BackgroundColor(Color::linear_rgba(0.0, 1.0, 0.0, 0.3)),
+                                    ))
+                                    .with_children(|commands| {
+                                        commands.spawn((
+                                            BinBar,
+                                            BinIndex(i),
+                                            Visibility::Visible,
+                                            Node {
+                                                position_type: PositionType::Absolute,
+                                                width: Val::Percent(100.0),
+                                                height: Val::Px(100.0),
+                                                top: Val::Percent(50.0),
+                                                bottom: Val::DEFAULT,
+                                                justify_content: JustifyContent::Center,
+                                                align_items: AlignItems::Center,
+                                                ..default()
+                                            },
+                                            BackgroundColor(Color::linear_rgb(0.0, 0.0, 1.0)),
+                                        ));
+                                        commands.spawn((
+                                            BinIndex(i),
+                                            Text::new("1.23"),
+                                            TextFont {
+                                                font_size: 10.3,
+                                                ..Default::default()
+                                            },
+                                        ));
+                                    });
+                            });
+                    }
+                });
         });
 
     commands.spawn((
@@ -469,13 +546,15 @@ fn set_status_text(
     mut query: Query<&mut Text, With<StatusText>>,
 ) {
     if timer.is_changed() || division.is_changed() || mute.is_changed() {
-        query.single_mut().0 = format!(
-            "BPM: {}\n1 / {}\nTick Mute: {}\nTap Mute: {}",
-            bpm(&timer).round() as u32,
-            division.0,
-            mute.tick_mute,
-            mute.tap_mute
-        );
+        for mut text in &mut query {
+            text.0 = format!(
+                "BPM: {}\n1 / {}\nTick Mute: {}\nTap Mute: {}",
+                bpm(&timer).round() as u32,
+                division.0,
+                mute.tick_mute,
+                mute.tap_mute
+            );
+        }
     }
 }
 
@@ -500,81 +579,31 @@ struct BinIndex(usize);
 #[derive(Component)]
 struct BinBar;
 
-#[derive(Bundle)]
-struct Bin {
-    index: BinIndex,
-    rect: Mesh2d,
-    material: MeshMaterial2d<ColorMaterial>,
-    transform: Transform,
-    bin_bar: BinBar,
-    visibility: Visibility,
-}
-
-impl Bin {
-    fn new(
-        index: usize,
-        meshes: &mut ResMut<Assets<Mesh>>,
-        materials: &mut ResMut<Assets<ColorMaterial>>,
-    ) -> Self {
-        Self {
-            index: BinIndex(index),
-            rect: Mesh2d(meshes.add(Mesh::from(Rectangle {
-                half_size: Vec2::new(0.5, 0.5),
-            }))),
-            material: MeshMaterial2d(materials.add(Color::linear_rgb(0.0, 0.0, 1.0))),
-            transform: Transform::from_xyz((index as f32 - (BINS / 2) as f32) * 100.0, 0.0, 4.0),
-            bin_bar: BinBar,
-            visibility: Visibility::Hidden,
-        }
-    }
-}
-
-#[derive(Bundle)]
-struct BinText {
-    index: BinIndex,
-    text: Text2d,
-    trandform: Transform,
-}
-
-impl BinText {
-    fn new(index: usize) -> Self {
-        Self {
-            index: BinIndex(index),
-            text: Text2d::new(""),
-            trandform: Transform::from_xyz((index as f32 - (BINS / 2) as f32) * 100.0, 0.0, 8.0),
-        }
-    }
-}
-
 fn set_bins(
     mut query_bar: Query<
-        (
-            &BinIndex,
-            &mut MeshMaterial2d<ColorMaterial>,
-            &mut Transform,
-            &mut Visibility,
-        ),
+        (&BinIndex, &mut Node, &mut BackgroundColor, &mut Visibility),
         With<BinBar>,
     >,
-    mut query_text: Query<(&BinIndex, &mut Text2d)>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
+    mut query_text: Query<(&BinIndex, &mut Text)>,
     tap_deltas: Res<TapDeltas>,
 ) {
     if tap_deltas.is_changed() {
-        for (BinIndex(index), mut material, mut transform, mut visibility) in &mut query_bar {
+        for (BinIndex(index), mut node, mut color, mut visibility) in &mut query_bar {
             if let Some(delta) = tap_deltas.0.get(*index) {
-                let height = *delta as f32 * BAR_HEIGHT_MULTIPLIER;
-                transform.translation.y = height / 2.0;
-                transform.scale = Vec3::new(88.0, height, 1.0);
+                let height = delta.abs() as f32 * BAR_HEIGHT_MULTIPLIER;
+                node.height = Val::Px(height);
+                node.position_type = PositionType::Absolute;
 
-                let color = if *delta > 0.0 {
-                    Color::linear_rgba(1.0, 0.0, 0.0, 0.6)
+                if *delta >= 0.0 {
+                    color.0 = Color::linear_rgba(1.0, 0.0, 0.0, 0.6);
+                    node.top = Val::DEFAULT;
+                    node.bottom = Val::Percent(50.0);
                 } else {
-                    Color::linear_rgba(0.0, 0.0, 1.0, 0.6)
-                };
+                    color.0 = Color::linear_rgba(0.0, 0.0, 1.0, 0.6);
+                    node.bottom = Val::DEFAULT;
+                    node.top = Val::Percent(50.0);
+                }
 
-                // TODO: reuse material handle
-                material.0 = materials.add(color);
                 *visibility = Visibility::Visible;
             } else {
                 *visibility = Visibility::Hidden;
