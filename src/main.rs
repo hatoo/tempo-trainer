@@ -56,7 +56,6 @@ fn main() {
             DefaultPlugins.set(WindowPlugin {
                 primary_window: Some(Window {
                     title: "tempo-trainer".to_string(),
-                    canvas: Some("#screen".to_string()),
                     fit_canvas_to_parent: true,
                     ..Default::default()
                 }),
@@ -357,7 +356,7 @@ fn setup(
         Text::new(""),
         Node {
             position_type: PositionType::Absolute,
-            bottom: Val::Px(4.0),
+            top: Val::Px(4.0),
             right: Val::Px(4.0),
             ..default()
         },
@@ -374,8 +373,20 @@ fn setup(
         flex_wrap: FlexWrap::Wrap,
         ..default()
     });
-    let mut add_button = move |kind: ButtonKind| {
-        node.with_children(|parent| {
+
+    node.with_children(|parent| {
+        for button_kind in &[
+            ButtonKind::BpmDown10,
+            ButtonKind::BpmDown1,
+            ButtonKind::BpmUp1,
+            ButtonKind::BpmUp10,
+            ButtonKind::DivisionDown1,
+            ButtonKind::DivisionUp1,
+            ButtonKind::TapMute,
+            ButtonKind::TickMute,
+            ButtonKind::HideClock,
+        ] {
+            let kind = *button_kind;
             parent
                 .spawn((
                     Button,
@@ -393,6 +404,7 @@ fn setup(
                             right: Val::Px(2.0),
                             ..Default::default()
                         },
+                        flex_grow: 1.0,
                         ..default()
                     },
                     BorderColor(Color::BLACK),
@@ -403,19 +415,8 @@ fn setup(
                     Text::new(kind.label()),
                     TextColor(Color::srgb(0.9, 0.9, 0.9)),
                 ));
-        });
-    };
-    add_button(ButtonKind::BpmDown10);
-    add_button(ButtonKind::BpmDown1);
-    add_button(ButtonKind::BpmUp1);
-    add_button(ButtonKind::BpmUp10);
-
-    add_button(ButtonKind::DivisionDown1);
-    add_button(ButtonKind::DivisionUp1);
-
-    add_button(ButtonKind::TapMute);
-    add_button(ButtonKind::TickMute);
-    add_button(ButtonKind::HideClock);
+        }
+    });
 }
 
 #[allow(clippy::too_many_arguments)]
