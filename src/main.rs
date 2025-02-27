@@ -56,6 +56,9 @@ fn main() {
             DefaultPlugins.set(WindowPlugin {
                 primary_window: Some(Window {
                     title: "tempo-trainer".to_string(),
+                    // Workaround for hi-dpi phones
+                    #[cfg(target_arch = "wasm32")]
+                    resolution: bevy::window::WindowResolution::new(800.0, 600.0),
                     fit_canvas_to_parent: true,
                     ..Default::default()
                 }),
