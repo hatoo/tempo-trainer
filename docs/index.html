@@ -2,31 +2,17 @@
 <html lang="en">
 
 <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
     <style>
-        html {
+        html,
+        body {
             margin: 0;
+            height: 100%;
         }
 
         body {
             display: flex;
             flex-direction: column;
-            margin: 0;
-        }
-
-        @media (max-aspect-ratio: 1/1) {
-
-            html,
-            body {
-                height: calc(100vw * 1/1);
-            }
-        }
-
-        @media not (max-aspect-ratio: 1/1) {
-
-            html,
-            body {
-                height: 100%;
-            }
         }
 
         canvas {
