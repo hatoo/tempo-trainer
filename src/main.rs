@@ -146,8 +146,9 @@ fn setup(
     commands.spawn((
         Camera2d,
         Projection::Orthographic(OrthographicProjection {
-            scaling_mode: ScalingMode::FixedVertical {
-                viewport_height: 1200.0,
+            scaling_mode: ScalingMode::AutoMin {
+                min_width: 1200.0,
+                min_height: 1200.0,
             },
             ..OrthographicProjection::default_2d()
         }),
@@ -359,8 +360,8 @@ fn setup(
         Text::new(""),
         Node {
             position_type: PositionType::Absolute,
-            top: Val::Px(4.0),
-            right: Val::Px(4.0),
+            top: Val::Px(0.0),
+            right: Val::Px(0.0),
             ..default()
         },
     ));
