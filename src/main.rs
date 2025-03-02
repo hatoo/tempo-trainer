@@ -2,6 +2,7 @@ use std::collections::VecDeque;
 
 use bevy::utils::{Duration, Instant};
 
+use bevy::window::PresentMode;
 use bevy::{
     color::palettes::basic::*,
     diagnostic::{DiagnosticsStore, EntityCountDiagnosticsPlugin, FrameTimeDiagnosticsPlugin},
@@ -60,6 +61,7 @@ fn main() {
                     #[cfg(target_arch = "wasm32")]
                     resolution: bevy::window::WindowResolution::new(800.0, 600.0),
                     fit_canvas_to_parent: true,
+                    present_mode: PresentMode::AutoNoVsync,
                     ..Default::default()
                 }),
                 ..Default::default()
