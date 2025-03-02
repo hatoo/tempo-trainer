@@ -428,6 +428,7 @@ fn tap(
     mut commands: Commands,
     audio_handles: Res<AudioHandles>,
     keyboard_input: Res<ButtonInput<KeyCode>>,
+    game_pad: Query<&Gamepad>,
     buttons: Res<ButtonInput<MouseButton>>,
     touches: Res<Touches>,
     last_tick: Res<LastTick>,
@@ -439,6 +440,9 @@ fn tap(
     if keyboard_input.get_just_pressed().count() > 0
         || buttons.get_just_pressed().count() > 0
         || touches.any_just_pressed()
+        || game_pad
+            .iter()
+            .any(|game_pad| game_pad.get_just_pressed().count() > 0)
     {
         if !mute.tap_mute {
             commands.spawn((
