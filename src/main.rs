@@ -10,9 +10,6 @@ use bevy::{
     render::{camera::ScalingMode, mesh::CircleMeshBuilder},
 };
 
-const TICK_AUDIO_PATH: &str = "sounds/c5.ogg";
-const TAP_AUDIO_PATH: &str = "sounds/c4.ogg";
-
 const CIRCLE_SIZE: f32 = 400.0;
 const BINS: usize = 16;
 
@@ -47,8 +44,33 @@ struct Clock;
 
 #[derive(Resource)]
 struct AudioHandles {
-    tick: Handle<AudioSource>,
-    tap: Handle<AudioSource>,
+    handles: Vec<Handle<AudioSource>>,
+    tick: usize,
+    tap: usize,
+}
+
+impl AudioHandles {
+    fn tick(&self) -> &Handle<AudioSource> {
+        &self.handles[self.tick]
+    }
+
+    fn tap(&self) -> &Handle<AudioSource> {
+        &self.handles[self.tap]
+    }
+}
+
+#[derive(Component)]
+enum Index {
+    Tick,
+    Tap,
+}
+
+#[derive(Component)]
+enum IndexButton {
+    TickIncrement,
+    TickDecrement,
+    TapIncrement,
+    TapDecrement,
 }
 
 fn main() {
@@ -80,7 +102,6 @@ fn main() {
         .add_systems(
             Update,
             (
-                tap,
                 control,
                 clock,
                 set_status_text,
@@ -89,8 +110,11 @@ fn main() {
                 diagnostics_text_update_system,
                 hide_clock,
                 button_system,
+                set_audio_indices,
             ),
         )
+        // Set tap sound before tap
+        .add_systems(Update, (index_button_system, tap).chain())
         .run();
 }
 
@@ -141,8 +165,15 @@ fn setup(
     asset_server: Res<AssetServer>,
 ) {
     commands.insert_resource(AudioHandles {
-        tick: asset_server.load(TICK_AUDIO_PATH),
-        tap: asset_server.load(TAP_AUDIO_PATH),
+        handles: vec![
+            asset_server.load("sounds/c4.ogg"),
+            asset_server.load("sounds/c5.ogg"),
+            asset_server.load("sounds/808sd.ogg"),
+            asset_server.load("sounds/808cb.ogg"),
+            asset_server.load("sounds/808cp.ogg"),
+        ],
+        tap: 0,
+        tick: 1,
     });
 
     commands.spawn((
@@ -187,16 +218,140 @@ fn setup(
         },
     ).with_children(|commands| {
         commands.spawn((
-            StatusText,
-            Text::new(""),
             Node {
+                display: Display::Flex,
+                flex_direction: FlexDirection::Column,
                 margin: UiRect {
                     left: Val::Px(12.0),
                     ..Default::default()
                 },
                 ..Default::default()
             },
-        ));
+        )).with_children(|commands| {
+                commands.spawn((
+                    StatusText,
+                    Text::new(""),
+                ));
+                commands.spawn((
+                    Node {
+                        border: UiRect::all(Val::Px(2.0)),
+                        justify_content: JustifyContent::Center,
+                        align_items: AlignItems::Center,
+                        margin: UiRect {
+                            top: Val::Px(4.0),
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    },
+                    BorderColor(Color::BLACK),
+                    BackgroundColor(NORMAL_BUTTON),
+                )).with_children(|commands| {
+                    commands.spawn((
+                        Button,
+                        IndexButton::TickDecrement,
+                        Node {
+                            position_type: PositionType::Absolute,
+                            left: Val::Px(0.0),
+                            height: Val::Percent(100.0),
+                            width: Val::Percent(50.0),
+                            ..default()
+                        },
+                    )).with_children(|commands| {
+                        commands.spawn((
+                            Text::new("-"),
+                            Node {
+                                position_type: PositionType::Absolute,
+                                left: Val::Px(12.0),
+                                ..default()
+                            }
+                        ));
+                    });
+                    commands.spawn((
+                        Button,
+                        IndexButton::TickIncrement,
+                        Node {
+                            position_type: PositionType::Absolute,
+                            right: Val::Px(0.0),
+                            height: Val::Percent(100.0),
+                            width: Val::Percent(50.0),
+                            ..default()
+                        },
+                    )).with_children(|commands| {
+                        commands.spawn((
+                            Text::new("+"),
+                            Node {
+                                position_type: PositionType::Absolute,
+                                right: Val::Px(12.0),
+                                ..default()
+                            }
+                        ));
+                    });
+                    commands.spawn((
+                        Index::Tick,
+                        Text::new(""),
+                    ));
+                });
+                commands.spawn((
+                    Node {
+                        border: UiRect::all(Val::Px(2.0)),
+                        justify_content: JustifyContent::Center,
+                        align_items: AlignItems::Center,
+                        margin: UiRect {
+                            top: Val::Px(2.0),
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    },
+                    BorderColor(Color::BLACK),
+                    BackgroundColor(NORMAL_BUTTON),
+                )).with_children(|commands| {
+                    commands.spawn((
+                        Button,
+                        IndexButton::TapDecrement,
+                        Node {
+                            position_type: PositionType::Absolute,
+                            left: Val::Px(0.0),
+                            height: Val::Percent(100.0),
+                            width: Val::Percent(50.0),
+                            ..default()
+                        },
+                    )).with_children(|commands| {
+                        commands.spawn((
+                            Text::new("-"),
+                            Node {
+                                position_type: PositionType::Absolute,
+                                left: Val::Px(12.0),
+                                ..default()
+                            }
+                        ));
+                    });
+                    commands.spawn((
+                        Button,
+                        IndexButton::TapIncrement,
+                        Node {
+                            position_type: PositionType::Absolute,
+                            right: Val::Px(0.0),
+                            height: Val::Percent(100.0),
+                            width: Val::Percent(50.0),
+                            ..default()
+                        },
+                    )).with_children(|commands| {
+                        commands.spawn((
+                            Text::new("+"),
+                            Node {
+                                position_type: PositionType::Absolute,
+                                right: Val::Px(12.0),
+                                ..default()
+                            }
+                        ));
+                    });
+                    commands.spawn((
+                        Index::Tap,
+                        Text::new(""),
+                    ));
+                });
+            }
+        );
 
         commands.spawn((
             Text::new(
@@ -448,7 +603,7 @@ fn tap(
     {
         if !mute.tap_mute {
             commands.spawn((
-                AudioPlayer::new(audio_handles.tap.clone()),
+                AudioPlayer::new(audio_handles.tap().clone()),
                 PlaybackSettings::DESPAWN,
             ));
         }
@@ -484,7 +639,7 @@ fn metronome(
 ) {
     if !mute.tick_mute {
         commands.spawn((
-            AudioPlayer::new(audio_handles.tick.clone()),
+            AudioPlayer::new(audio_handles.tick().clone()),
             PlaybackSettings::DESPAWN,
         ));
     }
@@ -796,6 +951,56 @@ fn button_system(
                 *color = NORMAL_BUTTON.into();
                 border_color.0 = Color::BLACK;
             }
+        }
+    }
+}
+
+fn set_audio_indices(
+    audio_handles: Res<AudioHandles>,
+    mut tick_text: Query<(&mut Text, &Index)>,
+    // mut tap_text: Query<&mut Text, With<TapIndex>>,
+) {
+    if audio_handles.is_changed() {
+        for (mut text, index) in &mut tick_text {
+            text.0 = match index {
+                Index::Tick => {
+                    format!("tick: {}", audio_handles.tick)
+                }
+                Index::Tap => {
+                    format!("tap: {}", audio_handles.tap)
+                }
+            };
+        }
+    }
+}
+
+#[allow(clippy::type_complexity)]
+fn index_button_system(
+    mut interaction_query: Query<
+        (&Interaction, &IndexButton),
+        (Changed<Interaction>, With<Button>),
+    >,
+    mut audio_handles: ResMut<AudioHandles>,
+) {
+    for (interaction, index_button) in &mut interaction_query {
+        match *interaction {
+            Interaction::Pressed => match index_button {
+                IndexButton::TickIncrement => {
+                    audio_handles.tick = (audio_handles.tick + 1) % audio_handles.handles.len();
+                }
+                IndexButton::TickDecrement => {
+                    audio_handles.tick = (audio_handles.tick + audio_handles.handles.len() - 1)
+                        % audio_handles.handles.len();
+                }
+                IndexButton::TapIncrement => {
+                    audio_handles.tap = (audio_handles.tap + 1) % audio_handles.handles.len();
+                }
+                IndexButton::TapDecrement => {
+                    audio_handles.tap = (audio_handles.tap + audio_handles.handles.len() - 1)
+                        % audio_handles.handles.len();
+                }
+            },
+            Interaction::None | Interaction::Hovered => {}
         }
     }
 }
