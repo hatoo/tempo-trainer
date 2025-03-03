@@ -974,6 +974,7 @@ fn set_audio_indices(
     }
 }
 
+#[allow(clippy::type_complexity)]
 fn index_button_system(
     mut interaction_query: Query<
         (&Interaction, &IndexButton),
