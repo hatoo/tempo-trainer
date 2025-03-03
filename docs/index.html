@@ -29,6 +29,14 @@
         canvas {
             flex-grow: 1;
         }
+
+        #loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+            font-size: 2em;
+        }
     </style>
 
     <link rel="icon" type="image/x-icon" href="./favicon.ico">
@@ -98,15 +106,21 @@
         <a href="https://github.com/hatoo/tempo-trainer">hatoo/tempo-trainer</a> A simple trainer app for rhythm gamers.
     </div>
 
+    <div id="loading">
+        Loading...
+    </div>
+
     <script type="module">
 
         import init from './tempo-trainer.js'
 
-        init().catch((error) => {
+        await init().catch((error) => {
             if (!error.message.startsWith("Using exceptions for control flow, don't mind me. This isn't actually an error!")) {
                 throw error;
             }
         });
+
+        document.getElementById('loading').remove();
     </script>
 </body>
 
