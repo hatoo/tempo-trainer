@@ -73,6 +73,9 @@ enum IndexButton {
     TapDecrement,
 }
 
+#[derive(Component)]
+struct Statistics;
+
 fn main() {
     App::new()
         .add_plugins((
@@ -111,6 +114,7 @@ fn main() {
                 hide_clock,
                 button_system,
                 set_audio_indices,
+                set_statistics,
             ),
         )
         // Set tap sound before tap
@@ -351,6 +355,20 @@ fn setup(
                     ));
                 });
             }
+        );
+
+        commands.spawn(
+            (
+                Node {
+                    margin: UiRect {
+                        left: Val::Px(12.0),
+                        ..default()
+                    },
+                    ..default()
+                },
+                Statistics,
+                Text::new("Statistics:"),
+            )
         );
 
         commands.spawn((
@@ -1002,5 +1020,13 @@ fn index_button_system(
             },
             Interaction::None | Interaction::Hovered => {}
         }
+    }
+}
+
+fn set_statistics(tap_deltas: Res<TapDeltas>, mut query: Query<&mut Text, With<Statistics>>) {
+    let mean = tap_deltas.0.iter().map(|d| d.abs()).sum::<f64>() / tap_deltas.0.len() as f64;
+
+    for mut text in &mut query {
+        text.0 = format!("|avg(ms)|: {:.1}", mean * 1000.0);
     }
 }
