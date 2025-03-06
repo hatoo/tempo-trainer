@@ -644,7 +644,9 @@ fn tap(
             let division = (from_last / time_step_div.as_secs_f64()) as usize;
             (delta_from_last, division)
         } else {
-            let division = (from_next / time_step_div.as_secs_f64()) as usize;
+            let division = (division.0 as usize
+                - (from_next / time_step_div.as_secs_f64()) as usize)
+                % division.0 as usize;
             (-delta_from_next, division)
         };
 
