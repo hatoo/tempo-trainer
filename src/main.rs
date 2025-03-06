@@ -28,7 +28,8 @@ struct LastTick(Instant);
 struct Division(u32);
 
 #[derive(Resource)]
-struct TapDeltas(VecDeque<f64>);
+// delta and nearest disvision
+struct TapDeltas(VecDeque<(f64, usize)>);
 
 #[derive(Resource, Default)]
 struct Mute {
@@ -633,13 +634,18 @@ fn tap(
         let last_tick = last_tick.0;
         let next_tick = last_tick + time_step;
 
-        let delta_last = (now - last_tick).as_secs_f64() % time_step_div.as_secs_f64();
-        let delta_next = (next_tick - now).as_secs_f64() % time_step_div.as_secs_f64();
+        let from_last = (now - last_tick).as_secs_f64();
+        let from_next = (next_tick - now).as_secs_f64();
 
-        let delta = if delta_last < delta_next {
-            delta_last
+        let delta_from_last = from_last % time_step_div.as_secs_f64();
+        let delta_from_next = from_next % time_step_div.as_secs_f64();
+
+        let delta = if delta_from_last < delta_from_next {
+            let division = (from_last / time_step_div.as_secs_f64()) as usize;
+            (delta_from_last, division)
         } else {
-            -delta_next
+            let division = (from_next / time_step_div.as_secs_f64()) as usize;
+            (-delta_from_next, division)
         };
 
         tap_deltas.0.push_front(delta);
@@ -773,7 +779,7 @@ fn set_bins(
 ) {
     if tap_deltas.is_changed() {
         for (BinIndex(index), mut node, mut color, mut visibility) in &mut query_bar {
-            if let Some(delta) = tap_deltas.0.get(*index) {
+            if let Some((delta, _)) = tap_deltas.0.get(*index) {
                 let height = delta.abs() as f32 * BAR_HEIGHT_MULTIPLIER;
                 node.height = Val::Px(height);
                 node.position_type = PositionType::Absolute;
@@ -795,8 +801,8 @@ fn set_bins(
         }
 
         for (BinIndex(index), mut text) in &mut query_text {
-            if let Some(delta) = tap_deltas.0.get(*index) {
-                text.0 = format!("{:.1}", delta * 1000.0);
+            if let Some((delta, index)) = tap_deltas.0.get(*index) {
+                text.0 = format!("[{}]{:+.1}", index, delta * 1000.0);
             } else {
                 text.0 = "".to_string();
             }
@@ -1024,7 +1030,7 @@ fn index_button_system(
 }
 
 fn set_statistics(tap_deltas: Res<TapDeltas>, mut query: Query<&mut Text, With<Statistics>>) {
-    let mean = tap_deltas.0.iter().map(|d| d.abs()).sum::<f64>() / tap_deltas.0.len() as f64;
+    let mean = tap_deltas.0.iter().map(|d| d.0.abs()).sum::<f64>() / tap_deltas.0.len() as f64;
 
     for mut text in &mut query {
         text.0 = format!("|avg(ms)|: {:.1}", mean * 1000.0);
