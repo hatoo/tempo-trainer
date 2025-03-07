@@ -73,6 +73,8 @@ struct ClockResource {
     material_legend: Handle<ColorMaterial>,
     mesh_delta: Handle<Mesh>,
     material_delta: Handle<ColorMaterial>,
+    mesh_precision: Handle<Mesh>,
+    material_precision: Handle<ColorMaterial>,
 }
 
 #[derive(Component)]
@@ -212,6 +214,10 @@ fn setup(
         material_legend: materials.add(Color::linear_rgb(0.1, 0.3, 0.1)),
         mesh_delta: meshes.add(Mesh::from(Circle { radius: 12.0 })),
         material_delta: materials.add(Color::linear_rgb(0.1, 0.1, 0.3)),
+        mesh_precision: meshes.add(Mesh::from(Rectangle {
+            half_size: Vec2::new(0.5, 0.5),
+        })),
+        material_precision: materials.add(Color::linear_rgb(0.0, 0.0, 0.0)),
     });
 
     commands.spawn((
@@ -895,29 +901,61 @@ fn set_clock_legend(
     parent: Query<Entity, With<Clock>>,
     division: Res<Division>,
     clock_resource: Res<ClockResource>,
+    timer: Res<Time<Fixed>>,
 ) {
-    if division.is_changed() {
+    if division.is_changed() || timer.is_changed() {
         for e in query.iter() {
             commands.entity(e).despawn_recursive();
         }
 
-        for parent in &parent {
-            let division = division.0;
+        let division = division.0;
+        let tick = timer.timestep().as_secs_f32();
 
+        for parent in &parent {
             commands.entity(parent).with_children(|commands| {
-                for bundle in (0..division).map(|i| {
+                for i in 0..division {
                     let angle = 2.0 * std::f32::consts::PI * (i as f32 / division as f32);
                     let x = angle.sin() * CIRCLE_SIZE;
                     let y = angle.cos() * CIRCLE_SIZE;
 
-                    (
+                    commands.spawn((
                         ClockLegend,
                         Mesh2d(clock_resource.mesh_legend.clone()),
                         MeshMaterial2d(clock_resource.material_legend.clone()),
                         Transform::from_xyz(x, y, 3.0),
-                    )
-                }) {
-                    commands.spawn(bundle);
+                    ));
+
+                    let t = tick / division as f32 * i as f32;
+
+                    for delta in [
+                        -1.0 / 60.0,
+                        1.0 / 60.0,
+                        -1.5 / 60.0,
+                        1.5 / 60.0,
+                        -2.0 / 60.0,
+                        2.0 / 60.0,
+                    ] {
+                        let theta = (t + delta) / tick * 2.0 * std::f32::consts::PI;
+
+                        let mut transform = Transform::from_scale(Vec3::new(
+                            6.0,
+                            96.0 * (-delta.abs() * 60.0).exp(),
+                            1.0,
+                        ))
+                        .with_translation(Vec3::new(
+                            0.0,
+                            CIRCLE_SIZE,
+                            8.0,
+                        ));
+                        transform.rotate_around(Vec3::ZERO, Quat::from_rotation_z(theta));
+
+                        commands.spawn((
+                            ClockLegend,
+                            Mesh2d(clock_resource.mesh_precision.clone()),
+                            MeshMaterial2d(clock_resource.material_precision.clone()),
+                            transform,
+                        ));
+                    }
                 }
             });
         }
