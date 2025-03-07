@@ -27,9 +27,16 @@ struct LastTick(Instant);
 #[derive(Resource)]
 struct Division(u32);
 
+struct Delta {
+    delta: f64,
+    division: usize,
+    // 0 to 2pi
+    theta: f64,
+}
+
 #[derive(Resource)]
 // delta and nearest disvision
-struct TapDeltas(VecDeque<(f64, usize)>);
+struct TapDeltas(VecDeque<Delta>);
 
 #[derive(Resource, Default)]
 struct Mute {
@@ -116,6 +123,7 @@ fn main() {
                 button_system,
                 set_audio_indices,
                 set_statistics,
+                set_clock_delta,
             ),
         )
         // Set tap sound before tap
@@ -640,7 +648,7 @@ fn tap(
         let delta_from_last = from_last % time_step_div.as_secs_f64();
         let delta_from_next = from_next % time_step_div.as_secs_f64();
 
-        let delta = if delta_from_last < delta_from_next {
+        let (delta, division) = if delta_from_last < delta_from_next {
             let division = (from_last / time_step_div.as_secs_f64()) as usize;
             (delta_from_last, division)
         } else {
@@ -650,7 +658,11 @@ fn tap(
             (-delta_from_next, division)
         };
 
-        tap_deltas.0.push_front(delta);
+        tap_deltas.0.push_front(Delta {
+            delta,
+            division,
+            theta: from_last / time_step.as_secs_f64() * 2.0 * std::f64::consts::PI,
+        });
         while tap_deltas.0.len() > BINS {
             tap_deltas.0.pop_back();
         }
@@ -781,7 +793,7 @@ fn set_bins(
 ) {
     if tap_deltas.is_changed() {
         for (BinIndex(index), mut node, mut color, mut visibility) in &mut query_bar {
-            if let Some((delta, _)) = tap_deltas.0.get(*index) {
+            if let Some(Delta { delta, .. }) = tap_deltas.0.get(*index) {
                 let height = delta.abs() as f32 * BAR_HEIGHT_MULTIPLIER;
                 node.height = Val::Px(height);
                 node.position_type = PositionType::Absolute;
@@ -803,8 +815,11 @@ fn set_bins(
         }
 
         for (BinIndex(index), mut text) in &mut query_text {
-            if let Some((delta, index)) = tap_deltas.0.get(*index) {
-                text.0 = format!("[{}]{:+.1}", index, delta * 1000.0);
+            if let Some(Delta {
+                delta, division, ..
+            }) = tap_deltas.0.get(*index)
+            {
+                text.0 = format!("[{}]{:+.1}", division, delta * 1000.0);
             } else {
                 text.0 = "".to_string();
             }
@@ -861,6 +876,43 @@ fn set_clock_legend(
                     )
                 }) {
                     commands.spawn(bundle);
+                }
+            });
+        }
+    }
+}
+
+#[derive(Component)]
+struct ClockDelta;
+
+fn set_clock_delta(
+    mut commands: Commands,
+    query: Query<Entity, With<ClockDelta>>,
+    tap_deltas: Res<TapDeltas>,
+    parent: Query<Entity, With<Clock>>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+) {
+    if tap_deltas.is_changed() {
+        for e in query.iter() {
+            commands.entity(e).despawn_recursive();
+        }
+
+        let mesh = Mesh2d(meshes.add(Mesh::from(Circle { radius: 8.0 })));
+        let material = MeshMaterial2d(materials.add(Color::linear_rgb(0.1, 0.1, 0.3)));
+
+        for parent in &parent {
+            commands.entity(parent).with_children(|commands| {
+                for Delta { theta, .. } in tap_deltas.0.iter() {
+                    let x = theta.sin() as f32 * CIRCLE_SIZE;
+                    let y = theta.cos() as f32 * CIRCLE_SIZE;
+
+                    commands.spawn((
+                        ClockDelta,
+                        mesh.clone(),
+                        material.clone(),
+                        Transform::from_xyz(x, y, 4.0),
+                    ));
                 }
             });
         }
@@ -1032,7 +1084,7 @@ fn index_button_system(
 }
 
 fn set_statistics(tap_deltas: Res<TapDeltas>, mut query: Query<&mut Text, With<Statistics>>) {
-    let mean = tap_deltas.0.iter().map(|d| d.0.abs()).sum::<f64>() / tap_deltas.0.len() as f64;
+    let mean = tap_deltas.0.iter().map(|d| d.delta.abs()).sum::<f64>() / tap_deltas.0.len() as f64;
 
     for mut text in &mut query {
         text.0 = format!("|avg(ms)|: {:.1}", mean * 1000.0);
