@@ -115,6 +115,7 @@ fn main() {
         .insert_resource(Division(1))
         .insert_resource(TapDeltas(VecDeque::new()))
         .insert_resource(Mute::default())
+        .insert_resource(HideBarChart(false))
         .insert_resource(HideClock(false))
         .add_systems(Startup, setup)
         .add_systems(FixedUpdate, metronome)
@@ -127,6 +128,7 @@ fn main() {
                 set_bins,
                 set_clock_legend,
                 diagnostics_text_update_system,
+                hide_bar_chart,
                 hide_clock,
                 button_system,
                 set_audio_indices,
@@ -161,6 +163,7 @@ enum ButtonKind {
     TapMute,
     TickMute,
     HideClock,
+    HideBarChart,
 }
 
 impl ButtonKind {
@@ -174,10 +177,17 @@ impl ButtonKind {
             ButtonKind::DivisionDown1 => "Div-",
             ButtonKind::TapMute => "Tap Mute",
             ButtonKind::TickMute => "Tick Mute",
-            ButtonKind::HideClock => "Hide Clock",
+            ButtonKind::HideClock => "Clock",
+            ButtonKind::HideBarChart => "Chart",
         }
     }
 }
+
+#[derive(Component)]
+struct BarChart;
+
+#[derive(Resource)]
+struct HideBarChart(bool);
 
 fn setup(
     mut commands: Commands,
@@ -200,7 +210,7 @@ fn setup(
     commands.insert_resource(ClockResource {
         mesh_legend: meshes.add(Mesh::from(Circle { radius: 16.0 })),
         material_legend: materials.add(Color::linear_rgb(0.1, 0.3, 0.1)),
-        mesh_delta: meshes.add(Mesh::from(Circle { radius: 8.0 })),
+        mesh_delta: meshes.add(Mesh::from(Circle { radius: 12.0 })),
         material_delta: materials.add(Color::linear_rgb(0.1, 0.1, 0.3)),
     });
 
@@ -412,14 +422,18 @@ fn setup(
     // Bar chart
 
     commands
-        .spawn(Node {
-            width: Val::Percent(100.0),
-            height: Val::Percent(100.0),
-            justify_self: JustifySelf::Center,
-            justify_content: JustifyContent::Center,
-            align_items: AlignItems::Center,
-            ..default()
-        })
+        .spawn((
+            BarChart,
+            Visibility::Visible,
+            Node {
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
+                justify_self: JustifySelf::Center,
+                justify_content: JustifyContent::Center,
+                align_items: AlignItems::Center,
+                ..default()
+            },
+        ))
         .with_children(|commands| {
             commands
                 .spawn(Node {
@@ -527,7 +541,7 @@ fn setup(
                                         commands.spawn((
                                             BinBar,
                                             BinIndex(i),
-                                            Visibility::Visible,
+                                            Visibility::Inherited,
                                             Node {
                                                 position_type: PositionType::Absolute,
                                                 width: Val::Percent(100.0),
@@ -587,6 +601,7 @@ fn setup(
             ButtonKind::DivisionUp1,
             ButtonKind::TapMute,
             ButtonKind::TickMute,
+            ButtonKind::HideBarChart,
             ButtonKind::HideClock,
         ] {
             let kind = *button_kind;
@@ -825,7 +840,7 @@ fn set_bins(
                     node.top = Val::Percent(50.0);
                 }
 
-                *visibility = Visibility::Visible;
+                *visibility = Visibility::Inherited;
             } else {
                 *visibility = Visibility::Hidden;
             }
@@ -839,6 +854,21 @@ fn set_bins(
                 text.0 = format!("[{}]{:+.1}", division, delta * 1000.0);
             } else {
                 text.0 = "".to_string();
+            }
+        }
+    }
+}
+
+fn hide_bar_chart(
+    mut bar_chart: Query<&mut Visibility, With<BarChart>>,
+    hide_bar_chart: Res<HideBarChart>,
+) {
+    if hide_bar_chart.is_changed() {
+        for mut visibility in &mut bar_chart {
+            if hide_bar_chart.0 {
+                *visibility = Visibility::Hidden;
+            } else {
+                *visibility = Visibility::Visible;
             }
         }
     }
@@ -978,6 +1008,7 @@ fn button_system(
     mut timer: ResMut<Time<Fixed>>,
     mut division: ResMut<Division>,
     mut mute: ResMut<Mute>,
+    mut hide_bar_chart: ResMut<HideBarChart>,
     mut hide_clock: ResMut<HideClock>,
 ) {
     for (interaction, mut color, mut border_color, button_kind) in &mut interaction_query {
@@ -1027,6 +1058,9 @@ fn button_system(
                     }
                     ButtonKind::TickMute => {
                         mute.tick_mute = !mute.tick_mute;
+                    }
+                    ButtonKind::HideBarChart => {
+                        hide_bar_chart.0 = !hide_bar_chart.0;
                     }
                     ButtonKind::HideClock => {
                         hide_clock.0 = !hide_clock.0;
