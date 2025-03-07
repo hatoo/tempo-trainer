@@ -210,7 +210,7 @@ fn setup(
     commands.insert_resource(ClockResource {
         mesh_legend: meshes.add(Mesh::from(Circle { radius: 16.0 })),
         material_legend: materials.add(Color::linear_rgb(0.1, 0.3, 0.1)),
-        mesh_delta: meshes.add(Mesh::from(Circle { radius: 8.0 })),
+        mesh_delta: meshes.add(Mesh::from(Circle { radius: 12.0 })),
         material_delta: materials.add(Color::linear_rgb(0.1, 0.1, 0.3)),
     });
 
