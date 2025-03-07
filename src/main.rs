@@ -27,9 +27,16 @@ struct LastTick(Instant);
 #[derive(Resource)]
 struct Division(u32);
 
+struct Delta {
+    delta: f64,
+    division: usize,
+    // 0 to 2pi
+    theta: f64,
+}
+
 #[derive(Resource)]
 // delta and nearest disvision
-struct TapDeltas(VecDeque<(f64, usize)>);
+struct TapDeltas(VecDeque<Delta>);
 
 #[derive(Resource, Default)]
 struct Mute {
@@ -58,6 +65,14 @@ impl AudioHandles {
     fn tap(&self) -> &Handle<AudioSource> {
         &self.handles[self.tap]
     }
+}
+
+#[derive(Resource)]
+struct ClockResource {
+    mesh_legend: Handle<Mesh>,
+    material_legend: Handle<ColorMaterial>,
+    mesh_delta: Handle<Mesh>,
+    material_delta: Handle<ColorMaterial>,
 }
 
 #[derive(Component)]
@@ -116,6 +131,7 @@ fn main() {
                 button_system,
                 set_audio_indices,
                 set_statistics,
+                set_clock_delta,
             ),
         )
         // Set tap sound before tap
@@ -179,6 +195,13 @@ fn setup(
         ],
         tap: 0,
         tick: 1,
+    });
+
+    commands.insert_resource(ClockResource {
+        mesh_legend: meshes.add(Mesh::from(Circle { radius: 16.0 })),
+        material_legend: materials.add(Color::linear_rgb(0.1, 0.3, 0.1)),
+        mesh_delta: meshes.add(Mesh::from(Circle { radius: 8.0 })),
+        material_delta: materials.add(Color::linear_rgb(0.1, 0.1, 0.3)),
     });
 
     commands.spawn((
@@ -640,7 +663,7 @@ fn tap(
         let delta_from_last = from_last % time_step_div.as_secs_f64();
         let delta_from_next = from_next % time_step_div.as_secs_f64();
 
-        let delta = if delta_from_last < delta_from_next {
+        let (delta, division) = if delta_from_last < delta_from_next {
             let division = (from_last / time_step_div.as_secs_f64()) as usize;
             (delta_from_last, division)
         } else {
@@ -650,7 +673,11 @@ fn tap(
             (-delta_from_next, division)
         };
 
-        tap_deltas.0.push_front(delta);
+        tap_deltas.0.push_front(Delta {
+            delta,
+            division,
+            theta: from_last / time_step.as_secs_f64() * 2.0 * std::f64::consts::PI,
+        });
         while tap_deltas.0.len() > BINS {
             tap_deltas.0.pop_back();
         }
@@ -761,8 +788,10 @@ fn clock(
 
     let angle = 2.0 * std::f32::consts::PI * delta as f32;
 
-    let mut transform = query.single_mut();
-    transform.translation = Vec3::new(angle.sin() * CIRCLE_SIZE, angle.cos() * CIRCLE_SIZE, 1.0);
+    for mut transform in &mut query {
+        transform.translation =
+            Vec3::new(angle.sin() * CIRCLE_SIZE, angle.cos() * CIRCLE_SIZE, 1.0);
+    }
 }
 
 #[derive(Component)]
@@ -781,7 +810,7 @@ fn set_bins(
 ) {
     if tap_deltas.is_changed() {
         for (BinIndex(index), mut node, mut color, mut visibility) in &mut query_bar {
-            if let Some((delta, _)) = tap_deltas.0.get(*index) {
+            if let Some(Delta { delta, .. }) = tap_deltas.0.get(*index) {
                 let height = delta.abs() as f32 * BAR_HEIGHT_MULTIPLIER;
                 node.height = Val::Px(height);
                 node.position_type = PositionType::Absolute;
@@ -803,8 +832,11 @@ fn set_bins(
         }
 
         for (BinIndex(index), mut text) in &mut query_text {
-            if let Some((delta, index)) = tap_deltas.0.get(*index) {
-                text.0 = format!("[{}]{:+.1}", index, delta * 1000.0);
+            if let Some(Delta {
+                delta, division, ..
+            }) = tap_deltas.0.get(*index)
+            {
+                text.0 = format!("[{}]{:+.1}", division, delta * 1000.0);
             } else {
                 text.0 = "".to_string();
             }
@@ -832,8 +864,7 @@ fn set_clock_legend(
     query: Query<Entity, With<ClockLegend>>,
     parent: Query<Entity, With<Clock>>,
     division: Res<Division>,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
+    clock_resource: Res<ClockResource>,
 ) {
     if division.is_changed() {
         for e in query.iter() {
@@ -843,10 +874,6 @@ fn set_clock_legend(
         for parent in &parent {
             let division = division.0;
 
-            // TODO: reuse mesh and material handles
-            let mesh = Mesh2d(meshes.add(Mesh::from(Circle { radius: 16.0 })));
-            let material = MeshMaterial2d(materials.add(Color::linear_rgb(0.1, 0.3, 0.1)));
-
             commands.entity(parent).with_children(|commands| {
                 for bundle in (0..division).map(|i| {
                     let angle = 2.0 * std::f32::consts::PI * (i as f32 / division as f32);
@@ -855,12 +882,45 @@ fn set_clock_legend(
 
                     (
                         ClockLegend,
-                        mesh.clone(),
-                        material.clone(),
+                        Mesh2d(clock_resource.mesh_legend.clone()),
+                        MeshMaterial2d(clock_resource.material_legend.clone()),
                         Transform::from_xyz(x, y, 3.0),
                     )
                 }) {
                     commands.spawn(bundle);
+                }
+            });
+        }
+    }
+}
+
+#[derive(Component)]
+struct ClockDelta;
+
+fn set_clock_delta(
+    mut commands: Commands,
+    query: Query<Entity, With<ClockDelta>>,
+    tap_deltas: Res<TapDeltas>,
+    parent: Query<Entity, With<Clock>>,
+    clock_resource: Res<ClockResource>,
+) {
+    if tap_deltas.is_changed() {
+        for e in query.iter() {
+            commands.entity(e).despawn_recursive();
+        }
+
+        for parent in &parent {
+            commands.entity(parent).with_children(|commands| {
+                for Delta { theta, .. } in tap_deltas.0.iter() {
+                    let x = theta.sin() as f32 * CIRCLE_SIZE;
+                    let y = theta.cos() as f32 * CIRCLE_SIZE;
+
+                    commands.spawn((
+                        ClockDelta,
+                        Mesh2d(clock_resource.mesh_delta.clone()),
+                        MeshMaterial2d(clock_resource.material_delta.clone()),
+                        Transform::from_xyz(x, y, 4.0),
+                    ));
                 }
             });
         }
@@ -1032,7 +1092,7 @@ fn index_button_system(
 }
 
 fn set_statistics(tap_deltas: Res<TapDeltas>, mut query: Query<&mut Text, With<Statistics>>) {
-    let mean = tap_deltas.0.iter().map(|d| d.0.abs()).sum::<f64>() / tap_deltas.0.len() as f64;
+    let mean = tap_deltas.0.iter().map(|d| d.delta.abs()).sum::<f64>() / tap_deltas.0.len() as f64;
 
     for mut text in &mut query {
         text.0 = format!("|avg(ms)|: {:.1}", mean * 1000.0);
