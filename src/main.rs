@@ -67,6 +67,14 @@ impl AudioHandles {
     }
 }
 
+#[derive(Resource)]
+struct ClockResource {
+    mesh_legend: Handle<Mesh>,
+    material_legend: Handle<ColorMaterial>,
+    mesh_delta: Handle<Mesh>,
+    material_delta: Handle<ColorMaterial>,
+}
+
 #[derive(Component)]
 enum Index {
     Tick,
@@ -187,6 +195,13 @@ fn setup(
         ],
         tap: 0,
         tick: 1,
+    });
+
+    commands.insert_resource(ClockResource {
+        mesh_legend: meshes.add(Mesh::from(Circle { radius: 16.0 })),
+        material_legend: materials.add(Color::linear_rgb(0.1, 0.3, 0.1)),
+        mesh_delta: meshes.add(Mesh::from(Circle { radius: 8.0 })),
+        material_delta: materials.add(Color::linear_rgb(0.1, 0.1, 0.3)),
     });
 
     commands.spawn((
@@ -773,8 +788,10 @@ fn clock(
 
     let angle = 2.0 * std::f32::consts::PI * delta as f32;
 
-    let mut transform = query.single_mut();
-    transform.translation = Vec3::new(angle.sin() * CIRCLE_SIZE, angle.cos() * CIRCLE_SIZE, 1.0);
+    for mut transform in &mut query {
+        transform.translation =
+            Vec3::new(angle.sin() * CIRCLE_SIZE, angle.cos() * CIRCLE_SIZE, 1.0);
+    }
 }
 
 #[derive(Component)]
@@ -847,8 +864,7 @@ fn set_clock_legend(
     query: Query<Entity, With<ClockLegend>>,
     parent: Query<Entity, With<Clock>>,
     division: Res<Division>,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
+    clock_resource: Res<ClockResource>,
 ) {
     if division.is_changed() {
         for e in query.iter() {
@@ -858,10 +874,6 @@ fn set_clock_legend(
         for parent in &parent {
             let division = division.0;
 
-            // TODO: reuse mesh and material handles
-            let mesh = Mesh2d(meshes.add(Mesh::from(Circle { radius: 16.0 })));
-            let material = MeshMaterial2d(materials.add(Color::linear_rgb(0.1, 0.3, 0.1)));
-
             commands.entity(parent).with_children(|commands| {
                 for bundle in (0..division).map(|i| {
                     let angle = 2.0 * std::f32::consts::PI * (i as f32 / division as f32);
@@ -870,8 +882,8 @@ fn set_clock_legend(
 
                     (
                         ClockLegend,
-                        mesh.clone(),
-                        material.clone(),
+                        Mesh2d(clock_resource.mesh_legend.clone()),
+                        MeshMaterial2d(clock_resource.material_legend.clone()),
                         Transform::from_xyz(x, y, 3.0),
                     )
                 }) {
@@ -890,16 +902,12 @@ fn set_clock_delta(
     query: Query<Entity, With<ClockDelta>>,
     tap_deltas: Res<TapDeltas>,
     parent: Query<Entity, With<Clock>>,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
+    clock_resource: Res<ClockResource>,
 ) {
     if tap_deltas.is_changed() {
         for e in query.iter() {
             commands.entity(e).despawn_recursive();
         }
-
-        let mesh = Mesh2d(meshes.add(Mesh::from(Circle { radius: 8.0 })));
-        let material = MeshMaterial2d(materials.add(Color::linear_rgb(0.1, 0.1, 0.3)));
 
         for parent in &parent {
             commands.entity(parent).with_children(|commands| {
@@ -909,8 +917,8 @@ fn set_clock_delta(
 
                     commands.spawn((
                         ClockDelta,
-                        mesh.clone(),
-                        material.clone(),
+                        Mesh2d(clock_resource.mesh_delta.clone()),
+                        MeshMaterial2d(clock_resource.material_delta.clone()),
                         Transform::from_xyz(x, y, 4.0),
                     ));
                 }
