@@ -8,7 +8,7 @@ fn main() {
     App::new()
         .insert_resource(WinitSettings {
             focused_mode: UpdateMode::Continuous,
-            ..WinitSettings::mobile()
+            unfocused_mode: UpdateMode::Continuous,
         })
         .add_plugins((
             DefaultPlugins.set(WindowPlugin {
