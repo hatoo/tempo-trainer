@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use bevy::window::WindowMode;
+use bevy::window::{PresentMode, WindowMode};
 use bevy::winit::WinitSettings;
 use tempo_trainer::GamePlugin;
 
@@ -12,6 +12,7 @@ fn main() {
                 primary_window: Some(Window {
                     resizable: false,
                     mode: WindowMode::BorderlessFullscreen(MonitorSelection::Current),
+                    present_mode: PresentMode::AutoVsync,
                     ..default()
                 }),
                 ..default()

@@ -251,7 +251,7 @@ fn setup(
             position_type: PositionType::Absolute,
             display: Display::Flex,
             flex_direction: FlexDirection::Row,
-            top: Val::Px(12.0),
+            top: Val::Px(24.0),
             left: Val::Px(0.0),
             ..Default::default()
         },
@@ -392,6 +392,7 @@ fn setup(
             }
         );
 
+        #[cfg(not(target_os = "android"))]
         commands.spawn(
             (
                 Node {
@@ -406,6 +407,7 @@ fn setup(
             )
         );
 
+        #[cfg(not(target_os = "android"))]
         commands.spawn((
             Text::new(
                 "up/down: BPM +-1\nleft/right: BPM +-10\n[/]: Division +-1\nn: Tap Mute\nm: Tick Mute\n,: Hide Clock",
@@ -569,6 +571,7 @@ fn setup(
                 });
         });
 
+    #[cfg(not(target_os = "android"))]
     commands.spawn((
         DiagnosticsText,
         Text::new(""),
