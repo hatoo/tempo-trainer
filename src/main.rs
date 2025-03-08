@@ -244,6 +244,15 @@ fn setup(
             ));
 
             commands.spawn((
+                Mesh2d(meshes.add(CircleMeshBuilder {
+                    circle: Circle::new(CIRCLE_SIZE + 4.0),
+                    resolution: 128,
+                })),
+                MeshMaterial2d(materials.add(Color::linear_rgb(0.1, 0.1, 0.1))),
+                Transform::from_xyz(0.0, 0.0, -1.0),
+            ));
+
+            commands.spawn((
                 ClockMarker,
                 Mesh2d(meshes.add(Mesh::from(Circle::new(CIRCLE_SIZE / 8.0)))),
                 MeshMaterial2d(materials.add(Color::BLACK)),
