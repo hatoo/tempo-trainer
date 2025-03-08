@@ -14,6 +14,9 @@ bevy = { version = "0.15", default-features = false, features = [
     "android-native-activity",
 ] }
 
+# Needed for Android
+bevy_kira_audio = { version = "0.22.0", features = ["android_shared_stdcxx"] }
+
 # See https://github.com/bevyengine/bevy/pull/12052
 [target.aarch64-apple-ios-sim.dependencies]
 bevy = { version = "0.15", default-features = false, features = [

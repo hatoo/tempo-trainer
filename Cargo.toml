@@ -42,6 +42,12 @@ bevy = { version = "0.15", default-features = false, features = [
     "vorbis",
 ] }
 
+## This greatly improves WGPU's performance due to its heavy use of trace! calls
+log = { version = "0.4", features = [
+    "max_level_debug",
+    "release_max_level_warn",
+] }
+
 [profile.web]
 inherits = "release"
 opt-level = 'z'
