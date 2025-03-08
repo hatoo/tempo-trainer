@@ -3,8 +3,50 @@ name = "tempo-trainer"
 version = "0.1.0"
 edition = "2024"
 
+[workspace]
+members = ["mobile"]
+
 [dependencies]
-bevy = "0.15.3"
+bevy = { version = "0.15", default-features = false, features = [
+    "animation",
+    "bevy_asset",
+    "bevy_color",
+    "bevy_core_pipeline",
+    "bevy_gilrs",
+    "bevy_gizmos",
+    "bevy_gltf",
+    "bevy_mesh_picking_backend",
+    "bevy_pbr",
+    "bevy_picking",
+    "bevy_render",
+    "bevy_scene",
+    "bevy_sprite",
+    "bevy_sprite_picking_backend",
+    "bevy_state",
+    "bevy_text",
+    "bevy_ui",
+    "bevy_ui_picking_backend",
+    "bevy_window",
+    "bevy_winit",
+    "custom_cursor",
+    "default_font",
+    "hdr",
+    "multi_threaded",
+    "png",
+    "smaa_luts",
+    "sysinfo_plugin",
+    "tonemapping_luts",
+    "webgl2",
+    "x11",
+    "bevy_audio",
+    "vorbis",
+] }
+
+## This greatly improves WGPU's performance due to its heavy use of trace! calls
+log = { version = "0.4", features = [
+    "max_level_debug",
+    "release_max_level_warn",
+] }
 
 [profile.web]
 inherits = "release"
