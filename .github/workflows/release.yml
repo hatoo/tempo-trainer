@@ -64,7 +64,7 @@ jobs:
         # could add more targets like armv7-linux-androideabi here (then also add to cargo-apk config)
         run: rustup target add aarch64-linux-android
       - name: Install Cargo APK
-        run: cargo install --force cargo-apk
+        run: cargo install cargo-apk --locked --version 0.10.0
       - name: Build app for Android
         # This uses a debug build, since release builds require keystore configuration
         # For AAB builds that can be pushed to the Play store, see the release-android-google-play workflow.
