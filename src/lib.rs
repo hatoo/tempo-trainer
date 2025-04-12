@@ -1,32 +1,28 @@
-use std::collections::VecDeque;
+use std::{collections::VecDeque, time::Duration};
 
-use bevy::utils::{Duration, Instant};
-
+use bar_chart::{BINS, BarChartPlugin, HideBarChart};
 use bevy::{
     color::palettes::basic::*,
     diagnostic::{DiagnosticsStore, EntityCountDiagnosticsPlugin, FrameTimeDiagnosticsPlugin},
+    platform_support::time::Instant,
     prelude::*,
-    render::{camera::ScalingMode, mesh::CircleMeshBuilder},
+    render::camera::ScalingMode,
 };
+use clock::{ClockPlugin, HideClock};
 
-const CIRCLE_SIZE: f32 = 400.0;
-const BINS: usize = 16;
-
-const BAR_HEIGHT_MULTIPLIER: f32 = 4000.0;
+mod bar_chart;
+mod clock;
 
 #[derive(Component)]
 struct StatusText;
 
-#[derive(Component)]
-struct ClockMarker;
+#[derive(Resource)]
+pub struct LastTick(Instant);
 
 #[derive(Resource)]
-struct LastTick(Instant);
+pub struct Division(u32);
 
-#[derive(Resource)]
-struct Division(u32);
-
-struct Delta {
+pub struct Delta {
     delta: f64,
     division: usize,
     // 0 to 2pi
@@ -35,19 +31,13 @@ struct Delta {
 
 #[derive(Resource)]
 // delta and nearest disvision
-struct TapDeltas(VecDeque<Delta>);
+pub struct TapDeltas(VecDeque<Delta>);
 
 #[derive(Resource, Default)]
 struct Mute {
     tick_mute: bool,
     tap_mute: bool,
 }
-
-#[derive(Resource)]
-struct HideClock(bool);
-
-#[derive(Component)]
-struct Clock;
 
 #[derive(Resource)]
 struct AudioHandles {
@@ -64,16 +54,6 @@ impl AudioHandles {
     fn tap(&self) -> &Handle<AudioSource> {
         &self.handles[self.tap]
     }
-}
-
-#[derive(Resource)]
-struct ClockResource {
-    mesh_legend: Handle<Mesh>,
-    material_legend: Handle<ColorMaterial>,
-    mesh_delta: Handle<Mesh>,
-    material_delta: Handle<ColorMaterial>,
-    mesh_precision: Handle<Mesh>,
-    material_precision: Handle<ColorMaterial>,
 }
 
 #[derive(Component)]
@@ -97,35 +77,32 @@ pub struct GamePlugin;
 
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins((FrameTimeDiagnosticsPlugin, EntityCountDiagnosticsPlugin))
-            .insert_resource(Time::<Fixed>::from_duration(from_bpm(90.0)))
-            .insert_resource(LastTick(Instant::now()))
-            .insert_resource(Division(1))
-            .insert_resource(TapDeltas(VecDeque::new()))
-            .insert_resource(Mute::default())
-            .insert_resource(HideBarChart(false))
-            .insert_resource(HideClock(false))
-            .add_systems(Startup, setup)
-            .add_systems(FixedUpdate, metronome)
-            .add_systems(
-                Update,
-                (
-                    control,
-                    clock,
-                    set_status_text,
-                    set_bins,
-                    set_clock_legend,
-                    diagnostics_text_update_system,
-                    hide_bar_chart,
-                    hide_clock,
-                    button_system,
-                    set_audio_indices,
-                    set_statistics,
-                    set_clock_delta,
-                ),
-            )
-            // Set tap sound before tap
-            .add_systems(Update, (index_button_system, tap).chain());
+        app.add_plugins((
+            FrameTimeDiagnosticsPlugin::default(),
+            EntityCountDiagnosticsPlugin,
+            ClockPlugin,
+            BarChartPlugin,
+        ))
+        .insert_resource(Time::<Fixed>::from_duration(from_bpm(90.0)))
+        .insert_resource(LastTick(Instant::now()))
+        .insert_resource(Division(1))
+        .insert_resource(TapDeltas(VecDeque::new()))
+        .insert_resource(Mute::default())
+        .add_systems(Startup, setup)
+        .add_systems(FixedUpdate, metronome)
+        .add_systems(
+            Update,
+            (
+                control,
+                set_status_text,
+                diagnostics_text_update_system,
+                button_system,
+                set_audio_indices,
+                set_statistics,
+            ),
+        )
+        // Set tap sound before tap
+        .add_systems(Update, (index_button_system, tap).chain());
     }
 }
 
@@ -171,18 +148,7 @@ impl ButtonKind {
     }
 }
 
-#[derive(Component)]
-struct BarChart;
-
-#[derive(Resource)]
-struct HideBarChart(bool);
-
-fn setup(
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
-    asset_server: Res<AssetServer>,
-) {
+fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.insert_resource(AudioHandles {
         handles: vec![
             asset_server.load("sounds/c4.ogg"),
@@ -195,17 +161,6 @@ fn setup(
         tick: 1,
     });
 
-    commands.insert_resource(ClockResource {
-        mesh_legend: meshes.add(Mesh::from(Circle { radius: 16.0 })),
-        material_legend: materials.add(Color::linear_rgb(0.1, 0.3, 0.1)),
-        mesh_delta: meshes.add(Mesh::from(Circle { radius: 12.0 })),
-        material_delta: materials.add(Color::linear_rgb(0.1, 0.1, 0.3)),
-        mesh_precision: meshes.add(Mesh::from(Rectangle {
-            half_size: Vec2::new(0.5, 0.5),
-        })),
-        material_precision: materials.add(Color::linear_rgb(0.0, 0.0, 0.0)),
-    });
-
     commands.spawn((
         Camera2d,
         Projection::Orthographic(OrthographicProjection {
@@ -216,35 +171,6 @@ fn setup(
             ..OrthographicProjection::default_2d()
         }),
     ));
-
-    commands
-        .spawn((Clock, Transform::default(), Visibility::Hidden))
-        .with_children(|commands| {
-            commands.spawn((
-                Mesh2d(meshes.add(CircleMeshBuilder {
-                    circle: Circle::new(CIRCLE_SIZE),
-                    resolution: 128,
-                })),
-                MeshMaterial2d(materials.add(Color::linear_rgb(0.4, 0.4, 0.4))),
-                Transform::from_xyz(0.0, 0.0, 0.0),
-            ));
-
-            commands.spawn((
-                Mesh2d(meshes.add(CircleMeshBuilder {
-                    circle: Circle::new(CIRCLE_SIZE + 4.0),
-                    resolution: 128,
-                })),
-                MeshMaterial2d(materials.add(Color::linear_rgb(0.1, 0.1, 0.1))),
-                Transform::from_xyz(0.0, 0.0, -1.0),
-            ));
-
-            commands.spawn((
-                ClockMarker,
-                Mesh2d(meshes.add(Mesh::from(Circle::new(CIRCLE_SIZE / 8.0)))),
-                MeshMaterial2d(materials.add(Color::BLACK)),
-                Transform::from_xyz(0.0, 0.0, 1.0),
-            ));
-        });
 
     commands.spawn(
         Node {
@@ -421,155 +347,6 @@ fn setup(
             },
         ));
     });
-
-    // Bar chart
-
-    commands
-        .spawn((
-            BarChart,
-            Visibility::Visible,
-            Node {
-                width: Val::Percent(100.0),
-                height: Val::Percent(100.0),
-                justify_self: JustifySelf::Center,
-                justify_content: JustifyContent::Center,
-                align_items: AlignItems::Center,
-                ..default()
-            },
-        ))
-        .with_children(|commands| {
-            commands
-                .spawn(Node {
-                    display: Display::Flex,
-                    justify_self: JustifySelf::Center,
-                    flex_direction: FlexDirection::Row,
-                    width: Val::Percent(80.0),
-                    height: Val::Percent(100.0),
-                    ..Default::default()
-                })
-                .with_children(|commands| {
-                    for (f, height, label) in [
-                        (0.0, 4.0, "0"),
-                        (1.0, 3.0, "1/60"),
-                        (1.5, 2.0, "1.5/60"),
-                        (2.0, 1.0, "2/60"),
-                    ] {
-                        commands.spawn((
-                            Node {
-                                position_type: PositionType::Absolute,
-                                width: Val::Percent(100.0),
-                                height: Val::Px(f / 60.0 * BAR_HEIGHT_MULTIPLIER + height / 2.0),
-                                bottom: Val::Percent(50.0),
-                                border: UiRect {
-                                    top: Val::Px(height),
-                                    ..default()
-                                },
-                                ..default()
-                            },
-                            BorderColor(Color::BLACK),
-                        ));
-                        commands.spawn((
-                            Node {
-                                position_type: PositionType::Absolute,
-                                width: Val::Percent(100.0),
-                                height: Val::Px(f / 60.0 * BAR_HEIGHT_MULTIPLIER + height / 2.0),
-                                top: Val::Percent(50.0),
-                                border: UiRect {
-                                    bottom: Val::Px(height),
-                                    ..default()
-                                },
-                                ..default()
-                            },
-                            BorderColor(Color::BLACK),
-                        ));
-
-                        commands
-                            .spawn((
-                                Node {
-                                    position_type: PositionType::Absolute,
-                                    left: Val::Px(-12.0),
-                                    height: Val::Px(f / 60.0 * BAR_HEIGHT_MULTIPLIER),
-                                    width: Val::Percent(100.0),
-                                    bottom: Val::Percent(50.0),
-                                    ..default()
-                                },
-                                // BackgroundColor(Color::linear_rgba(0.0, 1.0, 0.0, 0.3)),
-                            ))
-                            .with_children(|commands| {
-                                commands.spawn((
-                                    Node {
-                                        position_type: PositionType::Absolute,
-                                        right: Val::Percent(100.0),
-                                        bottom: Val::Percent(100.0),
-                                        ..default()
-                                    },
-                                    Text::new(label),
-                                    TextFont {
-                                        font_size: 10.3,
-                                        ..Default::default()
-                                    },
-                                ));
-                            });
-                    }
-
-                    for i in 0..BINS {
-                        commands
-                            .spawn(Node {
-                                margin: UiRect {
-                                    left: Val::Px(4.0),
-                                    right: Val::Px(4.0),
-                                    ..default()
-                                },
-                                flex_grow: 1.0,
-                                flex_basis: Val::Px(0.0),
-                                justify_content: JustifyContent::Center,
-                                justify_self: JustifySelf::Center,
-                                align_items: AlignItems::Center,
-                                ..default()
-                            })
-                            .with_children(|commands| {
-                                commands
-                                    .spawn((
-                                        Node {
-                                            width: Val::Percent(100.0),
-                                            height: Val::Percent(100.0),
-                                            justify_content: JustifyContent::Center,
-                                            justify_self: JustifySelf::Center,
-                                            align_items: AlignItems::Center,
-                                            ..default()
-                                        },
-                                        // BackgroundColor(Color::linear_rgba(0.0, 1.0, 0.0, 0.3)),
-                                    ))
-                                    .with_children(|commands| {
-                                        commands.spawn((
-                                            BinBar,
-                                            BinIndex(i),
-                                            Visibility::Inherited,
-                                            Node {
-                                                position_type: PositionType::Absolute,
-                                                width: Val::Percent(100.0),
-                                                height: Val::Px(100.0),
-                                                top: Val::Percent(50.0),
-                                                bottom: Val::DEFAULT,
-                                                justify_content: JustifyContent::Center,
-                                                align_items: AlignItems::Center,
-                                                ..default()
-                                            },
-                                            BackgroundColor(Color::linear_rgb(0.0, 0.0, 1.0)),
-                                        ));
-                                        commands.spawn((
-                                            BinIndex(i),
-                                            Text::new("1.23"),
-                                            TextFont {
-                                                font_size: 10.3,
-                                                ..Default::default()
-                                            },
-                                        ));
-                                    });
-                            });
-                    }
-                });
-        });
 
     #[cfg(not(target_os = "android"))]
     commands.spawn((
@@ -792,203 +569,6 @@ fn set_status_text(
                 mute.tick_mute,
                 mute.tap_mute
             );
-        }
-    }
-}
-
-fn clock(
-    last_tick: Res<LastTick>,
-    timer: Res<Time<Fixed>>,
-    mut query: Query<&mut Transform, With<ClockMarker>>,
-) {
-    let now = Instant::now();
-    let time_step = timer.timestep();
-    let delta = (now - last_tick.0).as_secs_f64() / time_step.as_secs_f64();
-
-    let angle = 2.0 * std::f32::consts::PI * delta as f32;
-
-    for mut transform in &mut query {
-        transform.translation =
-            Vec3::new(angle.sin() * CIRCLE_SIZE, angle.cos() * CIRCLE_SIZE, 1.0);
-    }
-}
-
-#[derive(Component)]
-struct BinIndex(usize);
-
-#[derive(Component)]
-struct BinBar;
-
-fn set_bins(
-    mut query_bar: Query<
-        (&BinIndex, &mut Node, &mut BackgroundColor, &mut Visibility),
-        With<BinBar>,
-    >,
-    mut query_text: Query<(&BinIndex, &mut Text)>,
-    tap_deltas: Res<TapDeltas>,
-) {
-    if tap_deltas.is_changed() {
-        for (BinIndex(index), mut node, mut color, mut visibility) in &mut query_bar {
-            if let Some(Delta { delta, .. }) = tap_deltas.0.get(*index) {
-                let height = delta.abs() as f32 * BAR_HEIGHT_MULTIPLIER;
-                node.height = Val::Px(height);
-                node.position_type = PositionType::Absolute;
-
-                if *delta >= 0.0 {
-                    color.0 = Color::linear_rgba(1.0, 0.0, 0.0, 0.6);
-                    node.top = Val::DEFAULT;
-                    node.bottom = Val::Percent(50.0);
-                } else {
-                    color.0 = Color::linear_rgba(0.0, 0.0, 1.0, 0.6);
-                    node.bottom = Val::DEFAULT;
-                    node.top = Val::Percent(50.0);
-                }
-
-                *visibility = Visibility::Inherited;
-            } else {
-                *visibility = Visibility::Hidden;
-            }
-        }
-
-        for (BinIndex(index), mut text) in &mut query_text {
-            if let Some(Delta {
-                delta, division, ..
-            }) = tap_deltas.0.get(*index)
-            {
-                text.0 = format!("[{}]{:+.1}", division, delta * 1000.0);
-            } else {
-                text.0 = "".to_string();
-            }
-        }
-    }
-}
-
-fn hide_bar_chart(
-    mut bar_chart: Query<&mut Visibility, With<BarChart>>,
-    hide_bar_chart: Res<HideBarChart>,
-) {
-    if hide_bar_chart.is_changed() {
-        for mut visibility in &mut bar_chart {
-            if hide_bar_chart.0 {
-                *visibility = Visibility::Hidden;
-            } else {
-                *visibility = Visibility::Visible;
-            }
-        }
-    }
-}
-
-fn hide_clock(mut clock: Query<&mut Visibility, With<Clock>>, hide_clock: Res<HideClock>) {
-    if hide_clock.is_changed() {
-        for mut visibility in &mut clock {
-            if hide_clock.0 {
-                *visibility = Visibility::Hidden;
-            } else {
-                *visibility = Visibility::Visible;
-            }
-        }
-    }
-}
-
-#[derive(Component)]
-struct ClockLegend;
-
-fn set_clock_legend(
-    mut commands: Commands,
-    query: Query<Entity, With<ClockLegend>>,
-    parent: Query<Entity, With<Clock>>,
-    division: Res<Division>,
-    clock_resource: Res<ClockResource>,
-    timer: Res<Time<Fixed>>,
-) {
-    if division.is_changed() || timer.is_changed() {
-        for e in query.iter() {
-            commands.entity(e).despawn_recursive();
-        }
-
-        let division = division.0;
-        let tick = timer.timestep().as_secs_f32();
-
-        for parent in &parent {
-            commands.entity(parent).with_children(|commands| {
-                for i in 0..division {
-                    let angle = 2.0 * std::f32::consts::PI * (i as f32 / division as f32);
-                    let x = angle.sin() * CIRCLE_SIZE;
-                    let y = angle.cos() * CIRCLE_SIZE;
-
-                    commands.spawn((
-                        ClockLegend,
-                        Mesh2d(clock_resource.mesh_legend.clone()),
-                        MeshMaterial2d(clock_resource.material_legend.clone()),
-                        Transform::from_xyz(x, y, 3.0),
-                    ));
-
-                    let t = tick / division as f32 * i as f32;
-
-                    for delta in [
-                        -1.0 / 60.0,
-                        1.0 / 60.0,
-                        -1.5 / 60.0,
-                        1.5 / 60.0,
-                        -2.0 / 60.0,
-                        2.0 / 60.0,
-                    ] {
-                        let theta = (t + delta) / tick * 2.0 * std::f32::consts::PI;
-
-                        let mut transform = Transform::from_scale(Vec3::new(
-                            6.0,
-                            96.0 * (-delta.abs() * 60.0).exp(),
-                            1.0,
-                        ))
-                        .with_translation(Vec3::new(
-                            0.0,
-                            CIRCLE_SIZE,
-                            8.0,
-                        ));
-                        transform.rotate_around(Vec3::ZERO, Quat::from_rotation_z(theta));
-
-                        commands.spawn((
-                            ClockLegend,
-                            Mesh2d(clock_resource.mesh_precision.clone()),
-                            MeshMaterial2d(clock_resource.material_precision.clone()),
-                            transform,
-                        ));
-                    }
-                }
-            });
-        }
-    }
-}
-
-#[derive(Component)]
-struct ClockDelta;
-
-fn set_clock_delta(
-    mut commands: Commands,
-    query: Query<Entity, With<ClockDelta>>,
-    tap_deltas: Res<TapDeltas>,
-    parent: Query<Entity, With<Clock>>,
-    clock_resource: Res<ClockResource>,
-) {
-    if tap_deltas.is_changed() {
-        for e in query.iter() {
-            commands.entity(e).despawn_recursive();
-        }
-
-        for parent in &parent {
-            commands.entity(parent).with_children(|commands| {
-                for Delta { theta, .. } in tap_deltas.0.iter() {
-                    let x = theta.sin() as f32 * CIRCLE_SIZE;
-                    let y = theta.cos() as f32 * CIRCLE_SIZE;
-
-                    commands.spawn((
-                        ClockDelta,
-                        Mesh2d(clock_resource.mesh_delta.clone()),
-                        MeshMaterial2d(clock_resource.material_delta.clone()),
-                        Transform::from_xyz(x, y, 4.0),
-                    ));
-                }
-            });
         }
     }
 }
