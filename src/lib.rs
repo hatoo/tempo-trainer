@@ -5,10 +5,12 @@ use bevy::{
     diagnostic::{DiagnosticsStore, EntityCountDiagnosticsPlugin, FrameTimeDiagnosticsPlugin},
     platform_support::time::Instant,
     prelude::*,
-    render::{camera::ScalingMode, mesh::CircleMeshBuilder},
+    render::camera::ScalingMode,
 };
+use clock::{ClockPlugin, HideClock};
 
-const CIRCLE_SIZE: f32 = 400.0;
+mod clock;
+
 const BINS: usize = 16;
 
 const BAR_HEIGHT_MULTIPLIER: f32 = 4000.0;
@@ -16,16 +18,13 @@ const BAR_HEIGHT_MULTIPLIER: f32 = 4000.0;
 #[derive(Component)]
 struct StatusText;
 
-#[derive(Component)]
-struct ClockMarker;
+#[derive(Resource)]
+pub struct LastTick(Instant);
 
 #[derive(Resource)]
-struct LastTick(Instant);
+pub struct Division(u32);
 
-#[derive(Resource)]
-struct Division(u32);
-
-struct Delta {
+pub struct Delta {
     delta: f64,
     division: usize,
     // 0 to 2pi
@@ -34,19 +33,13 @@ struct Delta {
 
 #[derive(Resource)]
 // delta and nearest disvision
-struct TapDeltas(VecDeque<Delta>);
+pub struct TapDeltas(VecDeque<Delta>);
 
 #[derive(Resource, Default)]
 struct Mute {
     tick_mute: bool,
     tap_mute: bool,
 }
-
-#[derive(Resource)]
-struct HideClock(bool);
-
-#[derive(Component)]
-struct Clock;
 
 #[derive(Resource)]
 struct AudioHandles {
@@ -63,16 +56,6 @@ impl AudioHandles {
     fn tap(&self) -> &Handle<AudioSource> {
         &self.handles[self.tap]
     }
-}
-
-#[derive(Resource)]
-struct ClockResource {
-    mesh_legend: Handle<Mesh>,
-    material_legend: Handle<ColorMaterial>,
-    mesh_delta: Handle<Mesh>,
-    material_delta: Handle<ColorMaterial>,
-    mesh_precision: Handle<Mesh>,
-    material_precision: Handle<ColorMaterial>,
 }
 
 #[derive(Component)]
@@ -99,6 +82,7 @@ impl Plugin for GamePlugin {
         app.add_plugins((
             FrameTimeDiagnosticsPlugin::default(),
             EntityCountDiagnosticsPlugin,
+            ClockPlugin,
         ))
         .insert_resource(Time::<Fixed>::from_duration(from_bpm(90.0)))
         .insert_resource(LastTick(Instant::now()))
@@ -106,24 +90,19 @@ impl Plugin for GamePlugin {
         .insert_resource(TapDeltas(VecDeque::new()))
         .insert_resource(Mute::default())
         .insert_resource(HideBarChart(false))
-        .insert_resource(HideClock(false))
         .add_systems(Startup, setup)
         .add_systems(FixedUpdate, metronome)
         .add_systems(
             Update,
             (
                 control,
-                clock,
                 set_status_text,
                 set_bins,
-                set_clock_legend,
                 diagnostics_text_update_system,
                 hide_bar_chart,
-                hide_clock,
                 button_system,
                 set_audio_indices,
                 set_statistics,
-                set_clock_delta,
             ),
         )
         // Set tap sound before tap
@@ -179,12 +158,7 @@ struct BarChart;
 #[derive(Resource)]
 struct HideBarChart(bool);
 
-fn setup(
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
-    asset_server: Res<AssetServer>,
-) {
+fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.insert_resource(AudioHandles {
         handles: vec![
             asset_server.load("sounds/c4.ogg"),
@@ -197,17 +171,6 @@ fn setup(
         tick: 1,
     });
 
-    commands.insert_resource(ClockResource {
-        mesh_legend: meshes.add(Mesh::from(Circle { radius: 16.0 })),
-        material_legend: materials.add(Color::linear_rgb(0.1, 0.3, 0.1)),
-        mesh_delta: meshes.add(Mesh::from(Circle { radius: 12.0 })),
-        material_delta: materials.add(Color::linear_rgb(0.1, 0.1, 0.3)),
-        mesh_precision: meshes.add(Mesh::from(Rectangle {
-            half_size: Vec2::new(0.5, 0.5),
-        })),
-        material_precision: materials.add(Color::linear_rgb(0.0, 0.0, 0.0)),
-    });
-
     commands.spawn((
         Camera2d,
         Projection::Orthographic(OrthographicProjection {
@@ -218,35 +181,6 @@ fn setup(
             ..OrthographicProjection::default_2d()
         }),
     ));
-
-    commands
-        .spawn((Clock, Transform::default(), Visibility::Hidden))
-        .with_children(|commands| {
-            commands.spawn((
-                Mesh2d(meshes.add(CircleMeshBuilder {
-                    circle: Circle::new(CIRCLE_SIZE),
-                    resolution: 128,
-                })),
-                MeshMaterial2d(materials.add(Color::linear_rgb(0.4, 0.4, 0.4))),
-                Transform::from_xyz(0.0, 0.0, 0.0),
-            ));
-
-            commands.spawn((
-                Mesh2d(meshes.add(CircleMeshBuilder {
-                    circle: Circle::new(CIRCLE_SIZE + 4.0),
-                    resolution: 128,
-                })),
-                MeshMaterial2d(materials.add(Color::linear_rgb(0.1, 0.1, 0.1))),
-                Transform::from_xyz(0.0, 0.0, -1.0),
-            ));
-
-            commands.spawn((
-                ClockMarker,
-                Mesh2d(meshes.add(Mesh::from(Circle::new(CIRCLE_SIZE / 8.0)))),
-                MeshMaterial2d(materials.add(Color::BLACK)),
-                Transform::from_xyz(0.0, 0.0, 1.0),
-            ));
-        });
 
     commands.spawn(
         Node {
@@ -798,23 +732,6 @@ fn set_status_text(
     }
 }
 
-fn clock(
-    last_tick: Res<LastTick>,
-    timer: Res<Time<Fixed>>,
-    mut query: Query<&mut Transform, With<ClockMarker>>,
-) {
-    let now = Instant::now();
-    let time_step = timer.timestep();
-    let delta = (now - last_tick.0).as_secs_f64() / time_step.as_secs_f64();
-
-    let angle = 2.0 * std::f32::consts::PI * delta as f32;
-
-    for mut transform in &mut query {
-        transform.translation =
-            Vec3::new(angle.sin() * CIRCLE_SIZE, angle.cos() * CIRCLE_SIZE, 1.0);
-    }
-}
-
 #[derive(Component)]
 struct BinIndex(usize);
 
@@ -876,121 +793,6 @@ fn hide_bar_chart(
             } else {
                 *visibility = Visibility::Visible;
             }
-        }
-    }
-}
-
-fn hide_clock(mut clock: Query<&mut Visibility, With<Clock>>, hide_clock: Res<HideClock>) {
-    if hide_clock.is_changed() {
-        for mut visibility in &mut clock {
-            if hide_clock.0 {
-                *visibility = Visibility::Hidden;
-            } else {
-                *visibility = Visibility::Visible;
-            }
-        }
-    }
-}
-
-#[derive(Component)]
-struct ClockLegend;
-
-fn set_clock_legend(
-    mut commands: Commands,
-    query: Query<Entity, With<ClockLegend>>,
-    parent: Query<Entity, With<Clock>>,
-    division: Res<Division>,
-    clock_resource: Res<ClockResource>,
-    timer: Res<Time<Fixed>>,
-) {
-    if division.is_changed() || timer.is_changed() {
-        for e in query.iter() {
-            commands.entity(e).despawn();
-        }
-
-        let division = division.0;
-        let tick = timer.timestep().as_secs_f32();
-
-        for parent in &parent {
-            commands.entity(parent).with_children(|commands| {
-                for i in 0..division {
-                    let angle = 2.0 * std::f32::consts::PI * (i as f32 / division as f32);
-                    let x = angle.sin() * CIRCLE_SIZE;
-                    let y = angle.cos() * CIRCLE_SIZE;
-
-                    commands.spawn((
-                        ClockLegend,
-                        Mesh2d(clock_resource.mesh_legend.clone()),
-                        MeshMaterial2d(clock_resource.material_legend.clone()),
-                        Transform::from_xyz(x, y, 3.0),
-                    ));
-
-                    let t = tick / division as f32 * i as f32;
-
-                    for delta in [
-                        -1.0 / 60.0,
-                        1.0 / 60.0,
-                        -1.5 / 60.0,
-                        1.5 / 60.0,
-                        -2.0 / 60.0,
-                        2.0 / 60.0,
-                    ] {
-                        let theta = (t + delta) / tick * 2.0 * std::f32::consts::PI;
-
-                        let mut transform = Transform::from_scale(Vec3::new(
-                            6.0,
-                            96.0 * (-delta.abs() * 60.0).exp(),
-                            1.0,
-                        ))
-                        .with_translation(Vec3::new(
-                            0.0,
-                            CIRCLE_SIZE,
-                            8.0,
-                        ));
-                        transform.rotate_around(Vec3::ZERO, Quat::from_rotation_z(theta));
-
-                        commands.spawn((
-                            ClockLegend,
-                            Mesh2d(clock_resource.mesh_precision.clone()),
-                            MeshMaterial2d(clock_resource.material_precision.clone()),
-                            transform,
-                        ));
-                    }
-                }
-            });
-        }
-    }
-}
-
-#[derive(Component)]
-struct ClockDelta;
-
-fn set_clock_delta(
-    mut commands: Commands,
-    query: Query<Entity, With<ClockDelta>>,
-    tap_deltas: Res<TapDeltas>,
-    parent: Query<Entity, With<Clock>>,
-    clock_resource: Res<ClockResource>,
-) {
-    if tap_deltas.is_changed() {
-        for e in query.iter() {
-            commands.entity(e).despawn();
-        }
-
-        for parent in &parent {
-            commands.entity(parent).with_children(|commands| {
-                for Delta { theta, .. } in tap_deltas.0.iter() {
-                    let x = theta.sin() as f32 * CIRCLE_SIZE;
-                    let y = theta.cos() as f32 * CIRCLE_SIZE;
-
-                    commands.spawn((
-                        ClockDelta,
-                        Mesh2d(clock_resource.mesh_delta.clone()),
-                        MeshMaterial2d(clock_resource.material_delta.clone()),
-                        Transform::from_xyz(x, y, 4.0),
-                    ));
-                }
-            });
         }
     }
 }
