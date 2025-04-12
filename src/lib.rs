@@ -905,7 +905,7 @@ fn set_clock_legend(
 ) {
     if division.is_changed() || timer.is_changed() {
         for e in query.iter() {
-            commands.entity(e).despawn_recursive();
+            commands.entity(e).despawn();
         }
 
         let division = division.0;
@@ -974,7 +974,7 @@ fn set_clock_delta(
 ) {
     if tap_deltas.is_changed() {
         for e in query.iter() {
-            commands.entity(e).despawn_recursive();
+            commands.entity(e).despawn();
         }
 
         for parent in &parent {
