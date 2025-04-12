@@ -7,7 +7,7 @@ edition = "2024"
 members = ["mobile"]
 
 [dependencies]
-bevy = { version = "0.15", default-features = false, features = [
+bevy = { version = "0.16.0-rc.4", default-features = false, features = [
     "animation",
     "bevy_asset",
     "bevy_color",

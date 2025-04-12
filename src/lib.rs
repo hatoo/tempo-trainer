@@ -1,10 +1,9 @@
-use std::collections::VecDeque;
-
-use bevy::utils::{Duration, Instant};
+use std::{collections::VecDeque, time::Duration};
 
 use bevy::{
     color::palettes::basic::*,
     diagnostic::{DiagnosticsStore, EntityCountDiagnosticsPlugin, FrameTimeDiagnosticsPlugin},
+    platform_support::time::Instant,
     prelude::*,
     render::{camera::ScalingMode, mesh::CircleMeshBuilder},
 };
@@ -97,35 +96,38 @@ pub struct GamePlugin;
 
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins((FrameTimeDiagnosticsPlugin, EntityCountDiagnosticsPlugin))
-            .insert_resource(Time::<Fixed>::from_duration(from_bpm(90.0)))
-            .insert_resource(LastTick(Instant::now()))
-            .insert_resource(Division(1))
-            .insert_resource(TapDeltas(VecDeque::new()))
-            .insert_resource(Mute::default())
-            .insert_resource(HideBarChart(false))
-            .insert_resource(HideClock(false))
-            .add_systems(Startup, setup)
-            .add_systems(FixedUpdate, metronome)
-            .add_systems(
-                Update,
-                (
-                    control,
-                    clock,
-                    set_status_text,
-                    set_bins,
-                    set_clock_legend,
-                    diagnostics_text_update_system,
-                    hide_bar_chart,
-                    hide_clock,
-                    button_system,
-                    set_audio_indices,
-                    set_statistics,
-                    set_clock_delta,
-                ),
-            )
-            // Set tap sound before tap
-            .add_systems(Update, (index_button_system, tap).chain());
+        app.add_plugins((
+            FrameTimeDiagnosticsPlugin::default(),
+            EntityCountDiagnosticsPlugin,
+        ))
+        .insert_resource(Time::<Fixed>::from_duration(from_bpm(90.0)))
+        .insert_resource(LastTick(Instant::now()))
+        .insert_resource(Division(1))
+        .insert_resource(TapDeltas(VecDeque::new()))
+        .insert_resource(Mute::default())
+        .insert_resource(HideBarChart(false))
+        .insert_resource(HideClock(false))
+        .add_systems(Startup, setup)
+        .add_systems(FixedUpdate, metronome)
+        .add_systems(
+            Update,
+            (
+                control,
+                clock,
+                set_status_text,
+                set_bins,
+                set_clock_legend,
+                diagnostics_text_update_system,
+                hide_bar_chart,
+                hide_clock,
+                button_system,
+                set_audio_indices,
+                set_statistics,
+                set_clock_delta,
+            ),
+        )
+        // Set tap sound before tap
+        .add_systems(Update, (index_button_system, tap).chain());
     }
 }
 
