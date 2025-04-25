@@ -8,6 +8,12 @@ on:
       - "*.*.*"
   pull_request:
 
+# ToDo: adapt names
+env:
+  # This variable is used to name release output files.
+  GAME_EXECUTABLE_NAME: bevy_game
+  GAME_OSX_APP_NAME: BevyGame
+
 jobs:
   publish:
     name: Publish for ${{ matrix.target }}
@@ -48,3 +54,23 @@ jobs:
           file: tempo-trainer.zip
           asset_name: ${{ matrix.release_name }}.zip
           tag: ${{ github.ref }}
+  build-for-Android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Add Android targets
+        # could add more targets like armv7-linux-androideabi here (then also add to cargo-apk config)
+        run: rustup target add aarch64-linux-android
+      - name: Install Cargo APK
+        run: cargo install cargo-apk --locked --version 0.10.0
+      - name: Build app for Android
+        # This uses a debug build, since release builds require keystore configuration
+        # For AAB builds that can be pushed to the Play store, see the release-android-google-play workflow.
+        run: ANDROID_NDK_ROOT=$ANDROID_NDK_LATEST_HOME cargo apk build --package mobile
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.GAME_OSX_APP_NAME }}.apk
+          path: target/debug/apk/${{ env.GAME_OSX_APP_NAME }}.apk
